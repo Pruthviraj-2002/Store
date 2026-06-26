@@ -17,9 +17,10 @@ interface StoreState {
   cartItems: CartItem[];
   addToCart: (product: any, qty: number) => void;
   removeFromCart: (id: string) => void;
+  updateQuantity: (id: string, qty: number) => void; // <-- ADDED THIS LINE
   clearCart: () => void;
 
-  // --- NEW: Cart Drawer UI State ---
+  // Cart Drawer UI State
   isCartOpen: boolean;
   toggleCart: () => void;
 
@@ -50,9 +51,17 @@ export const useStore = create<StoreState>((set) => ({
     cartItems: state.cartItems.filter((item) => item.id !== id),
   })),
 
+  // <-- ADDED THIS FUNCTION LOGIC
+  updateQuantity: (id, qty) => set((state) => ({
+    cartItems: state.cartItems.map((item) => 
+      // Ensure quantity never drops below 1
+      item.id === id ? { ...item, qty: Math.max(1, qty) } : item
+    ),
+  })),
+
   clearCart: () => set({ cartItems: [] }),
 
-  // --- NEW: Drawer UI Logic ---
+  // Drawer UI Logic
   isCartOpen: false,
   toggleCart: () => set((state) => ({ isCartOpen: !state.isCartOpen })),
 

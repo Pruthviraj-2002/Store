@@ -6,7 +6,9 @@ import {
   PhoneIcon,
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
-import Link from 'next/dist/client/link';
+
+// FIXED: Correct Next.js Link import
+import Link from 'next/link'; 
 
 export default function Hero() {
   return (
@@ -20,17 +22,15 @@ export default function Hero() {
             Find the Right Components,<br /> Fast and Easy
           </h1>
           
-
-          
           {/* Updated Startup CTA Buttons */}
           <div className="flex items-center gap-4">
-  <Link href="/shop" className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-3.5 rounded-md font-bold transition-colors shadow-sm active:scale-[0.98] flex items-center gap-2">
-    Shop Now <ArrowRightIcon className="h-4 w-4" />
-  </Link>
-  <Link href="/new-arrivals" className="bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 px-8 py-3.5 rounded-md font-bold transition-colors shadow-sm active:scale-[0.98]">
-    New Arrivals
-  </Link>
-</div>
+            <Link href="/shop" className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-3.5 rounded-md font-bold transition-colors shadow-sm active:scale-[0.98] flex items-center gap-2">
+              Shop Now <ArrowRightIcon className="h-4 w-4" />
+            </Link>
+            <Link href="/new-arrivals" className="bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 px-8 py-3.5 rounded-md font-bold transition-colors shadow-sm active:scale-[0.98]">
+              New Arrivals
+            </Link>
+          </div>
         </div>
 
         {/* Right Side: The Background Image */}

@@ -21,10 +21,8 @@ import {
 export default function CartPage() {
   const router = useRouter();
   
-  // Pull state and actions directly from our Zustand store
   const { cartItems, updateQuantity, removeFromCart, clearCart } = useStore();
 
-  // Dynamic Calculations based on live state
   const subtotal = cartItems.reduce((sum: number, item: CartItem) => sum + (item.price * item.qty), 0);
   const tax = subtotal * 0.18; // 18% GST
   const total = subtotal + tax;
@@ -78,20 +76,26 @@ export default function CartPage() {
                     </Link>
                   </div>
                 ) : (
-                  cartItems.map((item: CartItem) => (
+                  cartItems.map((item: CartItem) => {
+                    const imageSrc = item.img || item.image_url || '';
+                    return (
                     <div key={item.id} className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                       
                       {/* Image & Details */}
                       <div className="col-span-1 md:col-span-6 flex gap-4">
                         <div className="h-20 w-20 bg-gray-50 border border-gray-200 rounded flex items-center justify-center shrink-0 p-1">
-                          <img src={item.img} alt={item.name} className="max-w-full max-h-full object-contain mix-blend-multiply" />
+                          {imageSrc ? (
+                            <img src={imageSrc} alt={item.name} className="max-w-full max-h-full object-contain mix-blend-multiply" />
+                          ) : (
+                            <ShoppingCartIcon className="h-8 w-8 text-gray-300" />
+                          )}
                         </div>
                         <div>
                           <h3 className="font-bold text-gray-900 leading-tight">{item.name}</h3>
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.desc}</p>
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.desc || item.stock || 'Premium component'}</p>
                           <p className="text-xs text-green-600 font-medium mt-2 flex items-center gap-1">
                             <CheckCircleIcon className="h-3.5 w-3.5" />
-                            {item.stock}
+                            {item.stock || 'In stock'}
                           </p>
                         </div>
                       </div>
@@ -139,7 +143,8 @@ export default function CartPage() {
                         </button>
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 

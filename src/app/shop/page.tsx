@@ -1,103 +1,141 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { useStore } from "@/store/useStore";
-import { ShoppingCartIcon } from "@heroicons/react/24/outline";
+import React, { useEffect, useState } from 'react';
+import Navbar from '@/components/navbar';
+import Sidebar from '@/components/sidebar';
+import { useStore } from '@/store/useStore';
 
 export default function ShopPage() {
-  // 1. Local State for Database Data
+  const { selectedCategory, addToCart } = useStore();
+  
+  // State to hold our live database products
   const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 2. Global Zustand State
-  const searchQuery = useStore((state) => state.searchQuery);
-  const selectedCategory = useStore((state) => state.selectedCategory);
-  const addToCart = useStore((state) => state.addToCart);
-  const toggleCart = useStore((state) => state.toggleCart);
-
-  // 3. Fetch Live Data from Supabase
+  // Fetch products from the backend API as soon as the page loads
   useEffect(() => {
-    async function fetchLiveProducts() {
-      // Pull everything from the 'products' table where the status is Active
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("status", "Active");
-
-      if (error) {
-        console.error("Error fetching products:", error);
-      } else if (data) {
-        setProducts(data);
+    async function getProducts() {
+      try {
+        const response = await fetch('/api/products');
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to load products');
+        }
+        
+        // Ensure we always have an array, even if the API returns something unexpected
+        setProducts(Array.isArray(result) ? result : result.products || []);
+      } catch (error) {
+        console.error('Error fetching database:', error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
 
-    fetchLiveProducts();
+    getProducts();
   }, []);
 
-  // 4. Apply Filters to the Live Data
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === "All Categories" || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+  // The Bulletproof Filter: Handles nested Supabase relational data
+  const filteredProducts = products.filter(product => {
+    if (selectedCategory === "All Categories" || !selectedCategory) return true;
+    
+    return (
+      product.category === selectedCategory ||             // If your API formats it flat
+      product.category_id === selectedCategory ||          // If sidebar passes the raw ID
+      product.categories?.name === selectedCategory ||     // If Supabase returns the joined Name
+      product.categories?.slug === selectedCategory        // If Supabase returns the joined Slug
+    );
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-3xl font-extrabold text-gray-900 mb-8">Component Inventory</h1>
+    <div className="min-h-screen bg-white flex flex-col">
+      <Navbar />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full grow">
+        <div className="flex flex-col md:flex-row gap-8">
+          
+          {/* Left Sidebar */}
+          <div className="w-full md:w-64 shrink-0">
+            <Sidebar />
+          </div>
 
-      {isLoading ? (
-        // Loading Skeleton UI
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      ) : filteredProducts.length === 0 ? (
-        // No Results State
-        <div className="text-center py-12">
-          <p className="text-xl text-gray-500">No components found matching your criteria.</p>
-        </div>
-      ) : (
-        // Live Data Grid
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredProducts.map((product) => (
-            <div key={product.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
-              <div className="aspect-w-4 aspect-h-3 bg-gray-100">
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  className="object-cover w-full h-48"
-                />
-              </div>
-              <div className="p-6 flex flex-col grow">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <p className="text-sm font-medium text-blue-600 mb-1">{product.category}</p>
-                    <h3 className="text-lg font-bold text-gray-900 leading-tight">{product.name}</h3>
-                  </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    ₹{product.price}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-500 mb-4 line-clamp-2">{product.description}</p>
-                <div className="mt-auto">
-                  <button
-                    onClick={() => {
-  // Pass the product object as argument 1, and the quantity number as argument 2
-  addToCart({ ...product, img: product.image_url }, 1);
-  toggleCart(); // Auto-open drawer
-}}
-                    className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 transition-colors"
-                  >
-                    <ShoppingCartIcon className="h-5 w-5 mr-2" />
-                    Add to Cart
-                  </button>
-                </div>
+          {/* Right Product Grid */}
+          <div className="flex-1">
+            
+            {/* Page Header */}
+            <div className="mb-6 pb-4 border-b border-gray-200 flex justify-between items-end">
+              <div>
+                <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+                  {selectedCategory || "All Categories"}
+                </h1>
+                <p className="text-gray-500 mt-1 font-medium">
+                  {isLoading ? "Loading inventory..." : `Showing ${filteredProducts.length} results`}
+                </p>
               </div>
             </div>
-          ))}
+
+            {/* Loading State */}
+            {isLoading ? (
+              <div className="flex justify-center items-center py-24">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              </div>
+            ) : filteredProducts.length > 0 ? (
+              
+              /* Product Grid */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProducts.map(product => {
+                  const imageSrc = product.image_url || product.img || product.images?.[0] || '';
+                  return (
+                  <div key={product.id} className="border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-lg hover:border-blue-200 transition-all bg-white group cursor-pointer flex flex-col">
+                    
+                    <div className="h-48 bg-gray-50 rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
+                      {imageSrc ? (
+                        <img src={imageSrc} alt={product.name} className="object-cover h-full w-full" />
+                      ) : (
+                        <span className="text-gray-400 font-bold group-hover:scale-110 transition-transform">
+                          [ No Image ]
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex-grow">
+                      {/* FIX: Look for the nested Supabase category name first */}
+                      <p className="text-xs text-blue-600 font-bold uppercase tracking-wider mb-1">
+                        {product.categories?.name || product.category || 'Hardware'}
+                      </p>
+                      <h3 className="font-bold text-gray-900 text-lg leading-tight mb-2">
+                        {product.name}
+                      </h3>
+                      <p className="text-xs text-gray-500 font-medium mb-4">
+                        Stock: {product.stock} units
+                      </p>
+                    </div>
+
+                    <div className="mt-auto flex items-center justify-between">
+                      <p className="text-gray-900 font-black text-xl">₹{product.price}</p>
+                      <button 
+                        onClick={() => addToCart(product)} 
+                        className="bg-gray-900 text-white px-4 py-2 rounded-md text-sm font-bold hover:bg-blue-600 transition-colors active:scale-95"
+                      >
+                        Add to Cart
+                      </button>
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+            ) : (
+              
+              /* Empty State */
+              <div className="text-center py-24 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">No components found</h3>
+                <p className="text-gray-500">We don't have any stock for this category right now.</p>
+              </div>
+            )}
+            
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

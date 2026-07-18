@@ -15,12 +15,42 @@ export default function TrackOrderPage() {
   const [orderId, setOrderId] = useState("");
   const [email, setEmail] = useState("");
   const [isTracking, setIsTracking] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [orderDetails, setOrderDetails] = useState<any | null>(null);
+  const [trackError, setTrackError] = useState<string | null>(null);
 
-  // Mock function to simulate tracking a package
-  const handleTrackOrder = (e: React.FormEvent) => {
+  const handleTrackOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (orderId && email) {
-      setIsTracking(true);
+    if (!orderId || !email) {
+      setTrackError('Please provide both order ID and email');
+      return;
+    }
+
+    setIsLoading(true);
+    setTrackError(null);
+
+    try {
+      const response = await fetch(`/api/orders?orderId=${encodeURIComponent(orderId)}&email=${encodeURIComponent(email)}`);
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to find order');
+      }
+
+      const [order] = result.orders || [];
+      if (!order) {
+        setTrackError('No order was found for that email and ID combination.');
+        setOrderDetails(null);
+        setIsTracking(false);
+      } else {
+        setOrderDetails(order);
+        setIsTracking(true);
+      }
+    } catch (error) {
+      setTrackError((error as Error).message);
+      setOrderDetails(null);
+      setIsTracking(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -76,19 +106,24 @@ export default function TrackOrderPage() {
         </div>
 
         {/* Tracking Results (Visible only after form submission) */}
-        {isTracking && (
+        {trackError && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {trackError}
+          </div>
+        )}
+
+        {isTracking && orderDetails && (
           <div className="animate-fadeIn">
-            
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
               {/* Header */}
               <div className="bg-gray-900 text-white p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold">Order #{orderId.toUpperCase() || 'SK-883920'}</h2>
-                  <p className="text-gray-400 text-sm mt-1">Placed on October 24, 2026</p>
+                  <h2 className="text-xl font-bold">Order #{orderDetails.order_id || orderId.toUpperCase()}</h2>
+                  <p className="text-gray-400 text-sm mt-1">Placed on {new Date(orderDetails.created_at || Date.now()).toLocaleDateString()}</p>
                 </div>
                 <div className="text-left md:text-right">
                   <p className="text-sm text-gray-400 uppercase tracking-wider font-bold mb-1">Expected Delivery</p>
-                  <p className="text-xl font-bold text-green-400">October 28, 2026</p>
+                  <p className="text-xl font-bold text-green-400">{orderDetails.expected_delivery || 'TBD'}</p>
                 </div>
               </div>
 
@@ -96,39 +131,33 @@ export default function TrackOrderPage() {
               <div className="p-8 md:p-12 overflow-x-auto">
                 <div className="min-w-150">
                   <div className="flex justify-between items-center relative">
-                    {/* Connecting Line */}
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-gray-200 z-0 rounded"></div>
-                    {/* Active Line (Shows progression) */}
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[66%] h-1 bg-blue-600 z-0 rounded"></div>
 
-                    {/* Step 1: Placed */}
                     <div className="relative z-10 flex flex-col items-center">
                       <div className="h-10 w-10 bg-blue-600 text-white rounded-full flex items-center justify-center border-4 border-white shadow-sm">
                         <SolidCheckCircle className="h-6 w-6" />
                       </div>
                       <p className="mt-3 font-bold text-gray-900 text-sm">Order Placed</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Oct 24, 10:30 AM</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{orderDetails.created_at ? new Date(orderDetails.created_at).toLocaleTimeString() : 'Pending'}</p>
                     </div>
 
-                    {/* Step 2: Processing */}
                     <div className="relative z-10 flex flex-col items-center">
                       <div className="h-10 w-10 bg-blue-600 text-white rounded-full flex items-center justify-center border-4 border-white shadow-sm">
                         <CubeIcon className="h-5 w-5" />
                       </div>
                       <p className="mt-3 font-bold text-gray-900 text-sm">Processing</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Oct 25, 08:15 AM</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{orderDetails.processing_at ? new Date(orderDetails.processing_at).toLocaleDateString() : 'Pending'}</p>
                     </div>
 
-                    {/* Step 3: Shipped (Current Status) */}
                     <div className="relative z-10 flex flex-col items-center">
-                      <div className="h-10 w-10 bg-white border-2 border-blue-600 text-blue-600 rounded-full flex items-center justify-center shadow-sm animate-pulse">
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 border-white shadow-sm ${orderDetails.status === 'Shipped' ? 'bg-white border-blue-600 text-blue-600 animate-pulse' : 'bg-white border-gray-300 text-gray-300'}`}>
                         <TruckIcon className="h-5 w-5" />
                       </div>
-                      <p className="mt-3 font-bold text-blue-700 text-sm">Shipped</p>
+                      <p className={`mt-3 font-bold text-sm ${orderDetails.status === 'Shipped' ? 'text-blue-700' : 'text-gray-400'}`}>{orderDetails.status || 'Shipped'}</p>
                       <p className="text-xs text-blue-600 mt-0.5">In Transit</p>
                     </div>
 
-                    {/* Step 4: Delivered (Pending) */}
                     <div className="relative z-10 flex flex-col items-center">
                       <div className="h-10 w-10 bg-white border-2 border-gray-300 text-gray-300 rounded-full flex items-center justify-center">
                         <MapPinIcon className="h-5 w-5" />
@@ -141,47 +170,38 @@ export default function TrackOrderPage() {
               </div>
             </div>
 
-            {/* Delivery & Item Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Shipping Address */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Delivery Address</h3>
-                <p className="font-bold text-gray-800 text-sm">John Doe</p>
-                <p className="text-gray-600 text-sm mt-1">Tech Innovations Pvt. Ltd.</p>
-                <p className="text-gray-600 text-sm">Block C, 4th Floor, Cyber Park</p>
-                <p className="text-gray-600 text-sm">Hyderabad, Telangana 500081</p>
-                <p className="text-gray-600 text-sm">India</p>
+                <p className="font-bold text-gray-800 text-sm">{orderDetails.customer_name || email}</p>
+                <p className="text-gray-600 text-sm mt-1">{orderDetails.customer_email || email}</p>
+                <p className="text-gray-600 text-sm mt-3 whitespace-pre-line">{orderDetails.shipping_address || 'No shipping address available.'}</p>
                 <p className="text-gray-600 text-sm mt-3 flex items-center gap-2">
-                  <span className="font-bold text-gray-900">Phone:</span> +91 98765 43210
+                  <span className="font-bold text-gray-900">Phone:</span> {orderDetails.phone || 'N/A'}
                 </p>
               </div>
 
-              {/* Order Items Summary */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Items in this shipment</h3>
                 <div className="space-y-4">
-                  <div className="flex gap-4 items-center">
-                    <div className="h-12 w-12 bg-gray-50 border border-gray-200 rounded p-1 shrink-0">
-                      <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?w=100&q=80" alt="STM32" className="max-w-full max-h-full object-contain mix-blend-multiply" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900 text-sm">STM32F103C8T6 MCU</p>
-                      <p className="text-gray-500 text-xs mt-0.5">Qty: 2</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4 items-center">
-                    <div className="h-12 w-12 bg-gray-50 border border-gray-200 rounded p-1 shrink-0">
-                      <img src="https://images.unsplash.com/photo-1608564697071-ddf911d81370?w=100&q=80" alt="Resistor" className="max-w-full max-h-full object-contain mix-blend-multiply" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900 text-sm">1KΩ 1/4W Resistor</p>
-                      <p className="text-gray-500 text-xs mt-0.5">Qty: 50</p>
-                    </div>
-                  </div>
+                  {Array.isArray(orderDetails.items) && orderDetails.items.length > 0 ? (
+                    orderDetails.items.map((item: any, index: number) => (
+                      <div key={index} className="flex gap-4 items-center">
+                        <div className="h-12 w-12 bg-gray-50 border border-gray-200 rounded p-1 shrink-0 flex items-center justify-center">
+                          {item.img ? <img src={item.img} alt={item.name} className="max-w-full max-h-full object-contain" /> : <span className="text-xs text-gray-500">No Image</span>}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-bold text-gray-900 text-sm">{item.name || item.desc || 'Product'}</p>
+                          <p className="text-gray-500 text-xs mt-0.5">Qty: {item.qty || 1}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-sm">No item details are available for this order.</p>
+                  )}
                 </div>
               </div>
             </div>
-
           </div>
         )}
       </main>

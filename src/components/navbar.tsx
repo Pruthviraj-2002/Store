@@ -17,7 +17,6 @@ export default function Navbar() {
   const router = useRouter(); // Initialize the Next.js router
 
   // Zustand State
-  // Replace it with this dynamically calculating line:
   const cartTotalItems = useStore((state) => state.cartItems.reduce((total, item) => total + item.qty, 0));
   const setSearchQuery = useStore((state) => state.setSearchQuery);
   const searchQuery = useStore((state) => state.searchQuery);

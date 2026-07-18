@@ -1,10 +1,12 @@
 "use client";
 
+"use client";
+
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/navbar';
 import Sidebar from '@/components/sidebar';
-import ProductCard from '@/components/product-card';
+import ProductCard from '@/components/ProductCard';
 import { useStore } from '@/store/useStore';
 import {
   CheckBadgeIcon,

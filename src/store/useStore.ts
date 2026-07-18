@@ -1,74 +1,83 @@
 import { create } from 'zustand';
 
-// Define the shape of a single cart item
 export interface CartItem {
   id: string;
   name: string;
-  price: number;
-  qty: number;
-  img: string;
   desc?: string;
   stock?: string;
+  price: number;
+  qty: number;
+  img?: string;
+  image_url?: string;
 }
 
-// Define the shape of the entire store
 interface StoreState {
-  // Cart State
-  cartItems: CartItem[];
-  addToCart: (product: any, qty: number) => void;
-  removeFromCart: (id: string) => void;
-  updateQuantity: (id: string, qty: number) => void; // <-- ADDED THIS LINE
-  clearCart: () => void;
+  selectedCategory: string | null;
+  setSelectedCategory: (category: string | null) => void;
 
-  // Cart Drawer UI State
-  isCartOpen: boolean;
-  toggleCart: () => void;
-
-  // Filter State
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  selectedCategory: string;
-  setSelectedCategory: (category: string) => void;
+
+  cartItems: CartItem[];
+  isCartOpen: boolean;
+  toggleCart: () => void;
+  addToCart: (product: any, qty?: number) => void;
+  removeFromCart: (productId: string) => void;
+  updateQuantity: (productId: string, qty: number) => void;
+  clearCart: () => void;
 }
 
 export const useStore = create<StoreState>((set) => ({
-  // Cart Initial State
+  selectedCategory: 'All Categories',
+  setSelectedCategory: (category) => set({ selectedCategory: category }),
+
+  searchQuery: '',
+  setSearchQuery: (query) => set({ searchQuery: query }),
+
   cartItems: [],
-  
-  addToCart: (product, qty) => set((state) => {
-    const existingItem = state.cartItems.find((item) => item.id === product.id);
-    if (existingItem) {
-      return {
-        cartItems: state.cartItems.map((item) =>
-          item.id === product.id ? { ...item, qty: item.qty + qty } : item
-        ),
-      };
-    }
-    return { cartItems: [...state.cartItems, { ...product, qty }] };
-  }),
-
-  removeFromCart: (id) => set((state) => ({
-    cartItems: state.cartItems.filter((item) => item.id !== id),
-  })),
-
-  // <-- ADDED THIS FUNCTION LOGIC
-  updateQuantity: (id, qty) => set((state) => ({
-    cartItems: state.cartItems.map((item) => 
-      // Ensure quantity never drops below 1
-      item.id === id ? { ...item, qty: Math.max(1, qty) } : item
-    ),
-  })),
-
-  clearCart: () => set({ cartItems: [] }),
-
-  // Drawer UI Logic
   isCartOpen: false,
   toggleCart: () => set((state) => ({ isCartOpen: !state.isCartOpen })),
 
-  // Filter Initial State
-  searchQuery: "",
-  setSearchQuery: (query) => set({ searchQuery: query }),
-  
-  selectedCategory: "All Categories",
-  setSelectedCategory: (category) => set({ selectedCategory: category }),
+  addToCart: (product, qty = 1) =>
+    set((state) => {
+      const normalizedProduct: CartItem = {
+        id: product.id,
+        name: product.name || product.title || 'Product',
+        desc: product.desc || product.description || '',
+        stock: product.stock || product.stockText || 'In Stock',
+        price: Number(product.price) || 0,
+        qty,
+        img: product.img || product.image_url || product.images?.[0] || '',
+        image_url: product.image_url || product.img || product.images?.[0] || '',
+      };
+
+      const existingItem = state.cartItems.find((item) => item.id === normalizedProduct.id);
+      if (existingItem) {
+        return {
+          cartItems: state.cartItems.map((item) =>
+            item.id === normalizedProduct.id ? { ...item, qty: item.qty + qty } : item
+          ),
+          isCartOpen: true,
+        };
+      }
+
+      return {
+        cartItems: [...state.cartItems, normalizedProduct],
+        isCartOpen: true,
+      };
+    }),
+
+  removeFromCart: (productId) =>
+    set((state) => ({
+      cartItems: state.cartItems.filter((item) => item.id !== productId),
+    })),
+
+  updateQuantity: (productId, qty) =>
+    set((state) => ({
+      cartItems: state.cartItems.map((item) =>
+        item.id === productId ? { ...item, qty: Math.max(1, qty) } : item
+      ),
+    })),
+
+  clearCart: () => set({ cartItems: [] }),
 }));

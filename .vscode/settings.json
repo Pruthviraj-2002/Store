@@ -1,0 +1,4 @@
+{
+  "css.lint.unknownAtRules": "ignore",
+  "css.languageServer.experimental.useDefaultConfig": "always"
+}

@@ -1,156 +1,290 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { ArrowTrendingUpIcon, CubeIcon, ClockIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { createClient } from '@/utils/supabase/client';
+import React, { useEffect, useState, useRef } from 'react';
+import { ArrowTrendingUpIcon, CubeIcon, ClockIcon, TrashIcon, UserGroupIcon, CurrencyRupeeIcon, CheckBadgeIcon } from '@heroicons/react/24/outline';
+import { createAdminClient } from '@/utils/supabase/client';
+import { useStore } from '@/store/useStore';
 
-interface Product {
+interface ProductRow {
   id: string;
+  variant_id: string | null;
   name: string;
   sku: string;
   price: number;
   stock: number;
 }
 
+interface OrderRow {
+  id: string;
+  customer_email: string;
+  total_amount: number;
+  status: string;
+  created_at: string;
+}
+
 export default function AdminDashboard() {
-  const supabase = createClient();
-  const [inventory, setInventory] = useState<Product[]>([]);
+  const supabase = createAdminClient();
+  const [inventory, setInventory] = useState<ProductRow[]>([]);
+  const [recentOrders, setRecentOrders] = useState<OrderRow[]>([]);
+  
+  // Metrics
+  const [metrics, setMetrics] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    totalCustomers: 0,
+  });
+  
   const [isLoading, setIsLoading] = useState(true);
+  
+  const { realtimeUpdateTrigger, showToast } = useStore();
+  const prevTrigger = useRef(realtimeUpdateTrigger);
 
   useEffect(() => {
-    void fetchInventory();
+    void fetchDashboardData();
   }, []);
 
-  const fetchInventory = async () => {
-    setIsLoading(true);
-    const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-    if (!error && data) {
-      setInventory(data as Product[]);
+  // Listen to global realtime updates
+  useEffect(() => {
+    if (realtimeUpdateTrigger > prevTrigger.current) {
+      prevTrigger.current = realtimeUpdateTrigger;
+      // Fetch fresh data in the background silently
+      void fetchDashboardData(true);
     }
-    setIsLoading(false);
+  }, [realtimeUpdateTrigger]);
+
+  const fetchDashboardData = async (isBackground = false) => {
+    if (!isBackground) setIsLoading(true);
+    
+    // 1. Fetch Inventory (Existing logic)
+    const { data: invData, error: invError } = await supabase
+      .from('products')
+      .select('id, name, created_at, product_variants(id, sku, base_price, inventory(quantity))')
+      .order('created_at', { ascending: false });
+      
+    if (!invError && invData) {
+      const flattened = invData.map((p: any) => {
+        const variant = Array.isArray(p.product_variants) ? p.product_variants[0] : p.product_variants;
+        const inv = variant ? (Array.isArray(variant.inventory) ? variant.inventory[0] : variant.inventory) : null;
+        
+        return {
+          id: p.id,
+          variant_id: variant?.id || null,
+          name: p.name,
+          sku: variant?.sku || 'No SKU',
+          price: variant?.base_price || 0,
+          stock: inv?.quantity || 0,
+        };
+      });
+      setInventory(flattened);
+    }
+
+    // 2. Fetch Orders for metrics
+    const { data: ordersData } = await supabase
+      .from('orders')
+      .select('total_amount, status, created_at, customer_email')
+      .order('created_at', { ascending: false });
+
+    // 3. Fetch Customers count
+    const { count: customersCount } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
+
+    if (ordersData) {
+      const revenue = ordersData
+        .filter(o => o.status !== 'cancelled')
+        .reduce((sum, o) => sum + Number(o.total_amount), 0);
+        
+      setMetrics({
+        totalRevenue: revenue,
+        totalOrders: ordersData.length,
+        totalCustomers: customersCount || 0,
+      });
+      
+      // Top 5 recent orders
+      setRecentOrders(ordersData.slice(0, 5) as OrderRow[]);
+    }
+
+    if (!isBackground) setIsLoading(false);
   };
 
-  const handleUpdateStock = async (id: string, newStock: number) => {
-    const { error } = await supabase.from('products').update({ stock: newStock }).eq('id', id);
+  const handleUpdateStock = async (variant_id: string | null, newStock: number) => {
+    if (!variant_id) return alert('No variant found for this product.');
+    
+    const { error } = await supabase.from('inventory').update({ quantity: newStock }).eq('variant_id', variant_id);
     if (!error) {
-      setInventory((prev) => prev.map((item) => (item.id === id ? { ...item, stock: newStock } : item)));
+      setInventory((prev) => prev.map((item) => (item.variant_id === variant_id ? { ...item, stock: newStock } : item)));
     } else {
       alert('Could not update stock.');
-    }
-  };
-
-  const handleDeleteProduct = async (id: string) => {
-    if (!window.confirm('Delete this product from the storefront?')) return;
-
-    const { error } = await supabase.from('products').delete().eq('id', id);
-    if (!error) {
-      setInventory((prev) => prev.filter((item) => item.id !== id));
-    } else {
-      alert('Could not delete product.');
+      console.error(error);
     }
   };
 
   const lowStockCount = inventory.filter((item) => item.stock < 20).length;
   const outOfStockCount = inventory.filter((item) => item.stock === 0).length;
-  const totalValue = inventory.reduce((sum, item) => sum + item.price * item.stock, 0);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-fade-in-up">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-500 text-sm uppercase tracking-wider">Inventory Value</h3>
-            <div className="h-10 w-10 bg-green-50 rounded-lg flex items-center justify-center">
-              <ArrowTrendingUpIcon className="h-5 w-5 text-green-600" />
-            </div>
-          </div>
-          <p className="text-3xl font-black text-gray-900">₹{totalValue.toLocaleString('en-IN')}</p>
-          <p className="text-xs text-green-600 font-medium mt-2">Live from Supabase</p>
+    <div className="max-w-7xl mx-auto space-y-8 animate-fade-in-up pb-12">
+      
+      {/* Hero Welcome */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
+        <div className="relative z-10">
+          <h1 className="text-3xl font-black mb-2 tracking-tight">Welcome back, Admin</h1>
+          <p className="text-blue-100 font-medium">Here's what's happening with your store today.</p>
         </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-500 text-sm uppercase tracking-wider">Pending Dispatches</h3>
-            <div className="h-10 w-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <ClockIcon className="h-5 w-5 text-blue-600" />
-            </div>
-          </div>
-          <p className="text-3xl font-black text-gray-900">0 Orders</p>
-          <p className="text-xs text-gray-500 font-medium mt-2">Orders view is ready for live data</p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-500 text-sm uppercase tracking-wider">Low Stock Alerts</h3>
-            <div className="h-10 w-10 bg-red-50 rounded-lg flex items-center justify-center">
-              <CubeIcon className="h-5 w-5 text-red-600" />
-            </div>
-          </div>
-          <p className="text-3xl font-black text-gray-900">{lowStockCount + outOfStockCount} Items</p>
-          <p className="text-xs text-red-600 font-medium mt-2">Inventory update required</p>
+        <div className="absolute -right-10 -top-10 opacity-10">
+          <ArrowTrendingUpIcon className="w-64 h-64" />
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900">Inventory Management</h3>
-          <a href="/admin/products" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
-            Manage Products
-          </a>
+      {/* KPI Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        {/* Revenue Card */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-500 text-sm uppercase tracking-wider">Total Revenue</h3>
+            <div className="h-10 w-10 bg-green-50 group-hover:bg-green-100 rounded-xl flex items-center justify-center transition-colors">
+              <CurrencyRupeeIcon className="h-5 w-5 text-green-600" />
+            </div>
+          </div>
+          <p className="text-3xl font-black text-gray-900">₹{metrics.totalRevenue.toLocaleString('en-IN')}</p>
+          <p className="text-xs text-green-600 font-bold mt-2 flex items-center">
+             <ArrowTrendingUpIcon className="w-3 h-3 mr-1" /> Overall Earnings
+          </p>
         </div>
 
-        <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="p-8 text-center text-gray-500">Loading inventory...</div>
-          ) : (
+        {/* Orders Card */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-500 text-sm uppercase tracking-wider">Total Orders</h3>
+            <div className="h-10 w-10 bg-blue-50 group-hover:bg-blue-100 rounded-xl flex items-center justify-center transition-colors">
+              <CheckBadgeIcon className="h-5 w-5 text-blue-600" />
+            </div>
+          </div>
+          <p className="text-3xl font-black text-gray-900">{metrics.totalOrders}</p>
+          <p className="text-xs text-gray-500 font-medium mt-2">All-time orders</p>
+        </div>
+
+        {/* Customers Card */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-500 text-sm uppercase tracking-wider">Customers</h3>
+            <div className="h-10 w-10 bg-purple-50 group-hover:bg-purple-100 rounded-xl flex items-center justify-center transition-colors">
+              <UserGroupIcon className="h-5 w-5 text-purple-600" />
+            </div>
+          </div>
+          <p className="text-3xl font-black text-gray-900">{metrics.totalCustomers}</p>
+          <p className="text-xs text-gray-500 font-medium mt-2">Registered accounts</p>
+        </div>
+
+        {/* Stock Alerts Card */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-500 text-sm uppercase tracking-wider">Stock Alerts</h3>
+            <div className="h-10 w-10 bg-red-50 group-hover:bg-red-100 rounded-xl flex items-center justify-center transition-colors">
+              <CubeIcon className="h-5 w-5 text-red-600" />
+            </div>
+          </div>
+          <p className="text-3xl font-black text-gray-900">{lowStockCount + outOfStockCount}</p>
+          <p className="text-xs text-red-600 font-medium mt-2 flex items-center">
+             Items need restocking
+          </p>
+        </div>
+
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Recent Orders Table (Takes up 2/3 width) */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+            <h3 className="text-lg font-bold text-gray-900">Recent Orders</h3>
+            <a href="/admin/orders" className="text-sm font-bold text-blue-600 hover:text-blue-700">View All &rarr;</a>
+          </div>
+          <div className="overflow-x-auto flex-grow">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-gray-600 font-bold uppercase text-xs tracking-wider">
+              <thead className="bg-white text-gray-400 font-bold uppercase text-[10px] tracking-widest border-b border-gray-100">
                 <tr>
-                  <th className="px-6 py-4">Product Name & SKU</th>
-                  <th className="px-6 py-4">Price</th>
-                  <th className="px-6 py-4">Stock Level</th>
+                  <th className="px-6 py-4">Customer</th>
+                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4">Amount</th>
                   <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 text-gray-900">
-                {inventory.map((item) => {
-                  const status = item.stock === 0 ? 'Out of Stock' : item.stock < 20 ? 'Low Stock' : 'Active';
-                  return (
-                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="font-bold">{item.name}</div>
-                        <div className="text-xs text-gray-500 mt-1">{item.sku}</div>
+              <tbody className="divide-y divide-gray-50 text-gray-700">
+                {recentOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500">No orders yet.</td>
+                  </tr>
+                ) : (
+                  recentOrders.map((order, i) => (
+                    <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-gray-900">{order.customer_email || 'Guest'}</td>
+                      <td className="px-6 py-4 text-gray-500">
+                        {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
-                      <td className="px-6 py-4 font-medium">₹{item.price.toFixed(2)}</td>
+                      <td className="px-6 py-4 font-bold">₹{Number(order.total_amount).toFixed(2)}</td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            value={item.stock}
-                            onChange={(e) => handleUpdateStock(item.id, parseInt(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                          />
-                          <span className="text-xs text-gray-500">units</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${status === 'Active' ? 'bg-green-100 text-green-800' : status === 'Low Stock' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                          {status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button onClick={() => handleDeleteProduct(item.id)} className="text-gray-400 hover:text-red-600 transition-colors" title="Delete Product">
-                          <TrashIcon className="h-5 w-5" />
-                        </button>
+                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider
+                            ${order.status === 'delivered' ? 'bg-green-100 text-green-700' : 
+                              order.status === 'cancelled' ? 'bg-red-100 text-red-700' : 
+                              'bg-yellow-100 text-yellow-700'}`}>
+                           {order.status}
+                         </span>
                       </td>
                     </tr>
-                  );
-                })}
+                  ))
+                )}
               </tbody>
             </table>
-          )}
+          </div>
         </div>
+
+        {/* Quick Inventory (Takes up 1/3 width) */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full max-h-[500px]">
+          <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 shrink-0">
+            <h3 className="text-lg font-bold text-gray-900">Quick Stock</h3>
+            <a href="/admin/products" className="text-sm font-bold text-blue-600 hover:text-blue-700">Manage &rarr;</a>
+          </div>
+          <div className="overflow-y-auto flex-grow p-4 space-y-3 custom-scrollbar">
+             {inventory.slice(0, 10).map((item) => {
+                const status = item.stock === 0 ? 'Out' : item.stock < 20 ? 'Low' : 'OK';
+                return (
+                  <div key={item.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-blue-200 transition-colors bg-white">
+                     <div className="overflow-hidden pr-2">
+                        <div className="font-bold text-sm text-gray-900 truncate">{item.name}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`w-2 h-2 rounded-full ${status === 'OK' ? 'bg-green-500' : status === 'Low' ? 'bg-yellow-500' : 'bg-red-500'}`}></span>
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">{item.sku}</span>
+                        </div>
+                     </div>
+                     <div className="shrink-0 flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={item.stock}
+                          onChange={(e) => handleUpdateStock(item.variant_id, parseInt(e.target.value) || 0)}
+                          className="w-16 px-2 py-1.5 text-sm font-bold text-center border border-gray-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                        />
+                     </div>
+                  </div>
+                )
+             })}
+             {inventory.length > 10 && (
+               <div className="text-center pt-2 pb-1">
+                 <p className="text-xs text-gray-400 font-medium">+ {inventory.length - 10} more items</p>
+               </div>
+             )}
+          </div>
+        </div>
+
       </div>
     </div>
   );

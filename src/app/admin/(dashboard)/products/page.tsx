@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { createAdminClient } from '@/utils/supabase/client';
 
 const emptyForm = {
   name: '',
@@ -15,6 +15,7 @@ const emptyForm = {
 // Define our TypeScript interfaces based on your database schema
 interface Product {
   id: string;
+  variant_id: string | null;
   name: string;
   sku: string;
   price: number;
@@ -30,7 +31,7 @@ interface Category {
 }
 
 export default function ProductManager() {
-  const supabase = createClient();
+  const supabase = createAdminClient();
 
   // State Management
   const [products, setProducts] = useState<Product[]>([]);
@@ -53,13 +54,33 @@ export default function ProductManager() {
   const fetchData = async () => {
     setIsLoading(true);
     
-    // Fetch Products
+    // Fetch Products with relations
     const { data: productsData, error: productsError } = await supabase
       .from('products')
-      .select('*')
+      .select('id, name, slug, category_id, product_variants(id, sku, base_price, inventory(quantity)), product_images(url)')
       .order('created_at', { ascending: false });
       
-    if (!productsError && productsData) setProducts(productsData);
+    if (!productsError && productsData) {
+      const flattened = productsData.map((p: any) => {
+        const variant = Array.isArray(p.product_variants) ? p.product_variants[0] : p.product_variants;
+        const inv = variant ? (Array.isArray(variant.inventory) ? variant.inventory[0] : variant.inventory) : null;
+        const img = Array.isArray(p.product_images) ? p.product_images[0] : p.product_images;
+        
+        return {
+          id: p.id,
+          variant_id: variant?.id || null,
+          name: p.name,
+          sku: variant?.sku || '',
+          price: variant?.base_price || 0,
+          stock: inv?.quantity || 0,
+          category_id: p.category_id,
+          image_url: img?.url || '',
+        };
+      });
+      setProducts(flattened);
+    } else if (productsError) {
+      console.error(productsError);
+    }
 
     // Fetch Categories for the dropdown
     const { data: categoriesData, error: categoriesError } = await supabase
@@ -109,34 +130,68 @@ export default function ProductManager() {
     e.preventDefault();
     setIsSaving(true);
 
-    const payload = {
-      name: formData.name,
-      sku: formData.sku,
-      price: parseFloat(formData.price),
-      stock: parseInt(formData.stock),
-      category_id: formData.category_id || null,
-      image_url: formData.image_url || null
-    };
-
     if (editingId) {
       // UPDATE existing
-      const { error } = await supabase.from('products').update(payload).eq('id', editingId);
-      if (!error) {
-        setIsModalOpen(false);
-        await fetchData();
-      } else {
-        alert('Supabase Error: ' + error.message);
-        console.error('Full Error:', error);
+      const currentProduct = products.find(p => p.id === editingId);
+      const variant_id = currentProduct?.variant_id;
+
+      const { error: pErr } = await supabase.from('products').update({
+        name: formData.name,
+        category_id: formData.category_id || null,
+      }).eq('id', editingId);
+
+      if (!pErr && variant_id) {
+         await supabase.from('product_variants').update({
+           sku: formData.sku,
+           base_price: parseFloat(formData.price),
+         }).eq('id', variant_id);
+         
+         await supabase.from('inventory').update({
+           quantity: parseInt(formData.stock)
+         }).eq('variant_id', variant_id);
+         
+         await supabase.from('product_images').delete().eq('product_id', editingId);
+         if (formData.image_url) {
+           await supabase.from('product_images').insert([{ product_id: editingId, url: formData.image_url }]);
+         }
+      } else if (pErr) {
+        alert('Supabase Error: ' + pErr.message);
       }
+      
+      setIsModalOpen(false);
+      await fetchData();
     } else {
       // INSERT new
-      const { error } = await supabase.from('products').insert([payload]);
-      if (!error) {
-        setIsModalOpen(false);
-        await fetchData();
+      const slug = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
+      
+      const { data: pData, error: pErr } = await supabase.from('products').insert([{
+        name: formData.name,
+        slug: slug,
+        category_id: formData.category_id || null,
+      }]).select().single();
+      
+      if (pErr || !pData) {
+         alert('Error creating product: ' + pErr?.message);
       } else {
-        alert('Supabase Error: ' + error.message);
-        console.error('Full Error:', error);
+         const { data: vData, error: vErr } = await supabase.from('product_variants').insert([{
+            product_id: pData.id,
+            sku: formData.sku,
+            base_price: parseFloat(formData.price),
+         }]).select().single();
+         
+         if (!vErr && vData) {
+            await supabase.from('inventory').insert([{
+               variant_id: vData.id,
+               quantity: parseInt(formData.stock)
+            }]);
+         }
+         
+         if (formData.image_url) {
+            await supabase.from('product_images').insert([{ product_id: pData.id, url: formData.image_url }]);
+         }
+         
+         setIsModalOpen(false);
+         await fetchData();
       }
     }
     

@@ -6,20 +6,21 @@ export async function middleware(request: NextRequest) {
     request,
   })
 
-  // Initialize the bulletproof Supabase client
-  const supabase = createServerClient(
-    'https://pwkmfcyfinqsalwwblcx.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB3a21mY3lmaW5xc2Fsd3dibGN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NjUyMDAsImV4cCI6MjA5ODU0MTIwMH0.KQdCnmGCqSjEQRb6LaY8rJqVwA5pCmfkoXzu4E4WUDQ',
+  // Initialize the admin-specific Supabase client using our isolated cookie name
+  const adminAuthClient = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieOptions: {
+        name: 'sb-admin-auth-token',
+      },
       cookies: {
         getAll() {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
+          supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -28,24 +29,54 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Verify if a user is actively logged in
-  const { data: { user } } = await supabase.auth.getUser()
+  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
+  const isAdminLoginRoute = request.nextUrl.pathname.startsWith('/admin/login');
 
-  // THE CONTROL FLOW LOGIC
-  // If they are trying to access ANY /admin route (except the login page)
-  if (request.nextUrl.pathname.startsWith('/admin') && !request.nextUrl.pathname.startsWith('/admin/login')) {
+  // Verify if a user is actively logged in to the ADMIN portal
+  let user = null;
+  if (isAdminRoute) {
+    const { data } = await adminAuthClient.auth.getUser()
+    user = data.user;
+  }
+  
+  console.log("Middleware Check - Admin User ID:", user?.id);
+
+  let isAdmin = false;
+  if (user) {
+    // We use the Service Role Key to bypass RLS and prevent "infinite recursion" policy errors
+    const adminSupabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { cookies: { getAll: () => [], setAll: () => {} } }
+    );
     
-    // And they are NOT logged in
+    const { data: profile } = await adminSupabase.from('profiles').select('is_admin').eq('id', user.id).single();
+    if (profile?.is_admin) {
+      isAdmin = true;
+    }
+  }
+  console.log("Middleware Check - isAdmin:", isAdmin);
+
+  console.log("Middleware Check - isAdmin:", isAdmin);
+
+  if (isAdminRoute && !isAdminLoginRoute) {
+    // 1. Not logged in -> Go to admin login
     if (!user) {
-      // Redirect them instantly to the login screen
       const url = request.nextUrl.clone()
       url.pathname = '/admin/login'
       return NextResponse.redirect(url)
     }
+    
+    // 2. Logged in, but NOT an admin -> Go to home page
+    if (!isAdmin) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
   }
 
-  // If they are already logged in and try to visit the login page, push them to the dashboard
-  if (request.nextUrl.pathname === '/admin/login' && user) {
+  // If they are already logged in AND are an admin, keep them away from login page
+  if (isAdminLoginRoute && user && isAdmin) {
       const url = request.nextUrl.clone()
       url.pathname = '/admin'
       return NextResponse.redirect(url)

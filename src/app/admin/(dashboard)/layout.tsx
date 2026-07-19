@@ -2,7 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { createAdminClient } from '@/utils/supabase/client';
 import { 
   ChartPieIcon, 
   CubeIcon, 
@@ -20,7 +21,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Inventory', href: '/admin/inventory', icon: CubeIcon },
     { name: 'Orders & Dispatch', href: '/admin/orders', icon: TruckIcon },
     { name: 'Customers', href: '/admin/customers', icon: UsersIcon },
-    { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
   ];
 
   return (
@@ -54,11 +54,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-800">
+        <div className="p-4 border-t border-gray-800 space-y-2">
           <Link href="/" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
             <ArrowLeftOnRectangleIcon className="h-5 w-5 shrink-0" />
             Back to Store
           </Link>
+          <button 
+            onClick={async () => {
+              const supabase = createAdminClient();
+              await supabase.auth.signOut();
+              window.location.href = '/admin/login';
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:text-white hover:bg-red-600 transition-colors"
+          >
+            <Cog6ToothIcon className="h-5 w-5 shrink-0" />
+            Logout
+          </button>
         </div>
       </aside>
 

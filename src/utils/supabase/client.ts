@@ -2,7 +2,23 @@ import { createBrowserClient } from '@supabase/ssr'
 
 export function createClient() {
   return createBrowserClient(
-    'https://pwkmfcyfinqsalwwblcx.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB3a21mY3lmaW5xc2Fsd3dibGN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NjUyMDAsImV4cCI6MjA5ODU0MTIwMH0.KQdCnmGCqSjEQRb6LaY8rJqVwA5pCmfkoXzu4E4WUDQ'
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+
+export function createAdminClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookieOptions: {
+        name: 'sb-admin-auth-token',
+      },
+      isSingleton: false,
+      auth: {
+        multiTab: false, // Prevents BroadcastChannel from leaking the admin login event to the storefront!
+      }
+    }
   )
 }

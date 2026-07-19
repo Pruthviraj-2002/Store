@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface CartItem {
   id: string;
@@ -12,6 +13,10 @@ export interface CartItem {
 }
 
 interface StoreState {
+  // Auth state
+  user: any | null;
+  setUser: (user: any | null) => void;
+
   selectedCategory: string | null;
   setSelectedCategory: (category: string | null) => void;
 
@@ -19,15 +24,32 @@ interface StoreState {
   setSearchQuery: (query: string) => void;
 
   cartItems: CartItem[];
+  setCartItems: (items: CartItem[]) => void;
   isCartOpen: boolean;
   toggleCart: () => void;
   addToCart: (product: any, qty?: number) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, qty: number) => void;
   clearCart: () => void;
+
+  quickViewProduct: any | null;
+  setQuickViewProduct: (product: any | null) => void;
+
+  toast: { message: string; type: 'success' | 'error' | 'info' } | null;
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  hideToast: () => void;
+
+  realtimeUpdateTrigger: number;
+  triggerRealtimeUpdate: () => void;
 }
 
-export const useStore = create<StoreState>((set) => ({
+export const useStore = create<StoreState>()(
+  persist(
+    (set) => ({
+  // Auth state
+  user: null,
+  setUser: (user) => set({ user }),
+
   selectedCategory: 'All Categories',
   setSelectedCategory: (category) => set({ selectedCategory: category }),
 
@@ -35,6 +57,7 @@ export const useStore = create<StoreState>((set) => ({
   setSearchQuery: (query) => set({ searchQuery: query }),
 
   cartItems: [],
+  setCartItems: (items) => set({ cartItems: items }),
   isCartOpen: false,
   toggleCart: () => set((state) => ({ isCartOpen: !state.isCartOpen })),
 
@@ -56,14 +79,12 @@ export const useStore = create<StoreState>((set) => ({
         return {
           cartItems: state.cartItems.map((item) =>
             item.id === normalizedProduct.id ? { ...item, qty: item.qty + qty } : item
-          ),
-          isCartOpen: true,
+          )
         };
       }
 
       return {
-        cartItems: [...state.cartItems, normalizedProduct],
-        isCartOpen: true,
+        cartItems: [...state.cartItems, normalizedProduct]
       };
     }),
 
@@ -80,4 +101,25 @@ export const useStore = create<StoreState>((set) => ({
     })),
 
   clearCart: () => set({ cartItems: [] }),
-}));
+
+  quickViewProduct: null,
+  setQuickViewProduct: (product) => set({ quickViewProduct: product }),
+
+  toast: null,
+  showToast: (message, type = 'success') => {
+    set({ toast: { message, type } });
+    setTimeout(() => {
+      set({ toast: null });
+    }, 3000); // Auto-hide after 3 seconds
+  },
+  hideToast: () => set({ toast: null }),
+  
+  realtimeUpdateTrigger: 0,
+  triggerRealtimeUpdate: () => set((state) => ({ realtimeUpdateTrigger: state.realtimeUpdateTrigger + 1 })),
+    }),
+    {
+      name: 'sk-store-cart',
+      partialize: (state) => ({ cartItems: state.cartItems }),
+    }
+  )
+);

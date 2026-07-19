@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/utils/supabase/client';
+import { createAdminClient } from '@/utils/supabase/client';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -11,8 +11,8 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Initialize our bulletproof browser client
-  const supabase = createClient();
+  // Initialize our bulletproof browser admin client
+  const supabase = createAdminClient();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +38,7 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
-      
+
       {/* Icon & Headers */}
       <div className="text-center mb-8">
         <div className="bg-blue-600 text-white w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm">
@@ -47,13 +47,13 @@ export default function AdminLogin() {
           </svg>
         </div>
         <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Admin Portal</h1>
-        <p className="text-gray-500">Sign in to access the SK Technologies command center.</p>
+        <p className="text-gray-500">Sign in to access the SK Store command center.</p>
       </div>
 
       {/* Login Card */}
       <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-sm border border-gray-100">
         <form onSubmit={handleLogin} className="space-y-6">
-          
+
           {/* Error Message Display */}
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium border border-red-100 text-center">
@@ -96,10 +96,10 @@ export default function AdminLogin() {
           </button>
         </form>
       </div>
-      
+
       {/* Back to store link */}
       <div className="mt-8 text-center">
-        <button 
+        <button
           onClick={() => router.push('/')}
           className="text-gray-500 hover:text-gray-900 font-medium transition-colors text-sm"
         >

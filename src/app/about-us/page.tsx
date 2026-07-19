@@ -1,11 +1,11 @@
 import React from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/navbar';
-import { 
-  ShieldCheckIcon, 
-  BoltIcon, 
-  GlobeAsiaAustraliaIcon, 
-  UserGroupIcon 
+import {
+  ShieldCheckIcon,
+  BoltIcon,
+  GlobeAsiaAustraliaIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
 
 export default function AboutPage() {
@@ -14,7 +14,7 @@ export default function AboutPage() {
       <Navbar />
 
       <main className="grow">
-        
+
         {/* Hero Section */}
         <div className="bg-[#f8f9fa] py-20 border-b border-gray-200">
           <div className="max-w-300 mx-auto px-4 md:px-8 text-center">
@@ -22,7 +22,7 @@ export default function AboutPage() {
               Empowering India's Innovators.
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              SK Technologies is  premier destination for electronic components. We provide engineers, makers, and businesses with the authentic parts they need to build the future.
+              SK Store is  premier destination for electronic components. We provide engineers, makers, and businesses with the authentic parts they need to build the future.
             </p>
           </div>
         </div>
@@ -32,9 +32,9 @@ export default function AboutPage() {
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
             <p className="text-gray-600 mb-4 leading-relaxed">
-              Finding reliable, original electronic components used to be a challenge. Counterfeits, long shipping times, and poor customer support slowed down innovation. We started SK Technologies to fix that.
+              Finding reliable, original electronic components used to be a challenge. Counterfeits, long shipping times, and poor customer support slowed down innovation. We started SK Store to fix that.
             </p>
-            
+
             <Link href="/shop" className="text-blue-600 font-bold hover:text-blue-800 flex items-center gap-2 transition-colors">
               Explore our catalog <span aria-hidden="true">→</span>
             </Link>
@@ -44,7 +44,7 @@ export default function AboutPage() {
               <h3 className="text-4xl font-black text-blue-700 mb-2">1M+</h3>
               <p className="text-sm text-blue-900 font-medium">Components in Stock</p>
             </div>
-            
+
             <div className="bg-gray-50 rounded-2xl p-6 text-center">
               <h3 className="text-4xl font-black text-gray-900 mb-2">24h</h3>
               <p className="text-sm text-gray-600 font-medium">Average Dispatch Time</p>
@@ -60,10 +60,10 @@ export default function AboutPage() {
         <div className="bg-gray-900 text-white py-20">
           <div className="max-w-300 mx-auto px-4 md:px-8">
             <div className="text-center mb-16">
-              <h2 className="text-3xl font-bold mb-4">Why Choose SK Technologies?</h2>
+              <h2 className="text-3xl font-bold mb-4">Why Choose SK Store?</h2>
               <p className="text-gray-400 max-w-2xl mx-auto">We don't just sell parts; we support your entire development lifecycle with uncompromising standards.</p>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
               <div className="bg-gray-800 p-8 rounded-xl border border-gray-700">
                 <ShieldCheckIcon className="h-10 w-10 text-blue-400 mb-4" />

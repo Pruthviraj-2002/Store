@@ -37,30 +37,17 @@ export default function CheckoutPage() {
 
     try {
       const orderPayload = {
-        order_id: `SK-${Date.now().toString().slice(-6)}`,
-        customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
-        customer_email: formData.email,
-        shipping_address: `${formData.address}\nPhone: ${formData.phone || 'N/A'}\n${formData.notes}`.trim(),
-        phone: formData.phone,
+        customerEmail: formData.email,
+        totalAmount: Number(cartTotal.toFixed(2)),
         items: cartItems.map((item) => ({
           id: item.id,
           name: item.name,
           qty: item.qty,
           price: item.price,
-          img: item.img || item.image_url || '',
-        })),
-        total: Number(cartTotal.toFixed(2)),
-        status: 'Pending',
-        currency: 'INR',
-        created_at: new Date().toISOString(),
-        expected_delivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
-        }),
+        }))
       };
 
-      const response = await fetch('/api/orders', {
+      const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderPayload),
@@ -72,7 +59,7 @@ export default function CheckoutPage() {
       }
 
       clearCart();
-      router.push(`/track-order?orderId=${encodeURIComponent(result.order?.order_id || orderPayload.order_id)}&email=${encodeURIComponent(formData.email)}`);
+      router.push(`/track-order?orderId=${encodeURIComponent(result.orderId || 'UNKNOWN')}&email=${encodeURIComponent(formData.email)}`);
     } catch (error) {
       setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Unable to place order' });
     } finally {

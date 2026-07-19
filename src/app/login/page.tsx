@@ -3,252 +3,386 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ArrowLongRightIcon, 
   EyeIcon, 
   EyeSlashIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  ArrowRightIcon,
+  EnvelopeIcon,
+  LockClosedIcon,
+  UserIcon,
+  ShieldCheckIcon,
+  CpuChipIcon,
+  TruckIcon
 } from '@heroicons/react/24/outline';
+import { supabaseBrowser } from '@/lib/supabase';
+import { useStore } from '@/store/useStore';
 
-export default function LoginPage() {
+// --- Custom Floating Input Component ---
+const FloatingInput = ({ 
+  label, type, name, value, onChange, icon: Icon, required = false, isPassword = false, onTogglePassword, showPassword 
+}: any) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const isActive = isFocused || value.length > 0;
+
+  return (
+    <div className="relative group">
+      <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors duration-300 ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <label 
+        className={`absolute left-11 transition-all duration-300 pointer-events-none z-10 font-medium ${
+          isActive 
+            ? 'top-2 text-[10px] text-blue-600 uppercase tracking-wider' 
+            : 'top-1/2 -translate-y-1/2 text-sm text-gray-400'
+        }`}
+      >
+        {label}
+      </label>
+      <input 
+        type={isPassword && !showPassword ? 'password' : type}
+        name={name}
+        required={required}
+        value={value}
+        onChange={onChange}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        className="w-full bg-white border-2 border-gray-100 rounded-xl pl-11 pr-12 pt-6 pb-2 text-sm outline-none focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all text-gray-900 font-semibold"
+      />
+      {isPassword && (
+        <button 
+          type="button"
+          onClick={onTogglePassword}
+          className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-blue-600 transition-colors"
+        >
+          {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+        </button>
+      )}
+    </div>
+  );
+};
+
+export default function AuthPage() {
   const router = useRouter();
+  const { setUser, showToast } = useStore();
   
   // UI States
-  const [isLogin, setIsLogin] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   // Form Data State
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    username: '',
     password: '',
-    termsAccepted: false
+    confirmPassword: '',
   });
 
-  // Handle Input Changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setErrorMsg("");
   };
 
-  // Mock Google OAuth
-  const handleGoogleSignIn = () => {
-    setIsLoading(true);
-    // Simulate API delay
-    setTimeout(() => {
-      setIsLoading(false);
-      setSuccessMessage("Google Authentication Successful! Redirecting...");
-      setTimeout(() => router.push('/'), 1500);
-    }, 1200);
-  };
-
-  // Handle Form Submission
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setSuccessMessage("");
+    if (!supabaseBrowser) {
+      showToast("Supabase is not configured.", "error");
+      return;
+    }
 
-    // Simulate API request (Replace this with your actual NextAuth/Firebase logic)
-    setTimeout(() => {
-      setIsLoading(false);
+    if (!isLogin && formData.password !== formData.confirmPassword) {
+      setErrorMsg("Passwords do not match.");
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    try {
       if (isLogin) {
-        setSuccessMessage("Welcome back! Redirecting to dashboard...");
+        const { data, error } = await supabaseBrowser.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+        if (error) throw error;
+        
+        setUser(data.user);
+        setSuccessMsg("Welcome back!");
+        setTimeout(() => router.push('/'), 1000);
       } else {
-        setSuccessMessage("Account created successfully! Redirecting...");
+        const { data, error } = await supabaseBrowser.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: { name: formData.name }
+          }
+        });
+        if (error) throw error;
+        
+        setUser(data.user);
+        setSuccessMsg("Account created successfully!");
+        setTimeout(() => router.push('/'), 1000);
       }
-      // Redirect after success
-      setTimeout(() => router.push('/'), 1500);
-    }, 1500);
+    } catch (error: any) {
+      console.error("Auth Error:", error);
+      let msg = "An unexpected error occurred. Please try again.";
+      if (typeof error === 'string') msg = error;
+      else if (error?.message) msg = error.message;
+      setErrorMsg(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Toggle between Login and Signup (clears form and messages)
   const toggleMode = () => {
     setIsLogin(!isLogin);
-    setSuccessMessage("");
-    setFormData({ name: '', email: '', username: '', password: '', termsAccepted: false });
+    setErrorMsg("");
+    setSuccessMsg("");
+    setFormData({ name: '', email: '', password: '', confirmPassword: '' });
   };
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] flex items-center justify-center p-4 md:p-8 font-sans">
+    <div className="min-h-screen bg-white flex flex-col lg:flex-row font-sans">
       
-      {/* Main Card Container */}
-      <div className="bg-white rounded-4xl shadow-2xl flex flex-col md:flex-row w-full max-w-275 p-3 md:p-4 min-h-175 relative overflow-hidden transition-all duration-500">
+      {/* --- LEFT SIDE: BRAND STORY & IMAGERY --- */}
+      <div className="hidden lg:flex w-1/2 relative bg-gray-900 flex-col justify-between p-12 overflow-hidden">
         
-        {/* LEFT SIDE: Image Panel */}
-        <div className="relative w-full md:w-5/12 h-62.5 md:h-auto rounded-3xl overflow-hidden shrink-0">
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200')] bg-cover bg-center transition-transform duration-1000 hover:scale-105"></div>
-          <div className="absolute inset-0 bg-linear-to-t from-[#0f172a] via-[#0f172a]/60 to-transparent"></div>
-          
-          <div className="absolute inset-0 p-8 flex flex-col justify-between">
-            <Link href="/" className="text-white font-black text-2xl tracking-tight z-10 hover:opacity-80 transition-opacity w-fit">
-              SK<span className="text-blue-500">.</span>
-            </Link>
+        {/* Background Image & Overlay */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200" 
+            alt="Electronics Engineering" 
+            className="w-full h-full object-cover opacity-50 mix-blend-luminosity"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-gray-900/40" />
+        </div>
 
-            <div className="z-10 mt-auto animate-fade-in-up">
-              <h2 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-3">
-                Powering your next big innovation.
-              </h2>
-              <p className="text-gray-300 text-sm font-medium">
-                India's trusted source for electronic components.
-              </p>
+        {/* Top Header */}
+        <div className="relative z-10 flex items-center gap-2">
+          <Link href="/" className="text-3xl font-black text-white hover:text-gray-200 transition-colors">
+            SK<span className="text-blue-500">.</span>
+          </Link>
+        </div>
+
+        {/* Story Content */}
+        <div className="relative z-10 max-w-lg mb-20">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
+            <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight tracking-tight mb-6">
+              Powering India's Hardware Revolution.
+            </h1>
+            <p className="text-lg text-gray-300 font-medium leading-relaxed mb-10">
+              For over a decade, SK Store has been the backbone of innovation, providing millions of authentic, industrial-grade electronic components to engineers, researchers, and makers across the globe.
+            </p>
+            
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 shrink-0">
+                  <ShieldCheckIcon className="h-6 w-6 text-blue-400" />
+                </div>
+                <div>
+                  <h4 className="text-white font-bold">100% Authentic Parts</h4>
+                  <p className="text-gray-400 text-sm">Sourced directly from authorized manufacturers.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 shrink-0">
+                  <CpuChipIcon className="h-6 w-6 text-blue-400" />
+                </div>
+                <div>
+                  <h4 className="text-white font-bold">Massive Inventory</h4>
+                  <p className="text-gray-400 text-sm">Over 500,000 components in stock and ready to ship.</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 shrink-0">
+                  <TruckIcon className="h-6 w-6 text-blue-400" />
+                </div>
+                <div>
+                  <h4 className="text-white font-bold">Lightning Fast Delivery</h4>
+                  <p className="text-gray-400 text-sm">Same-day dispatch for critical project deadlines.</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Bottom Testimonial */}
+        <div className="relative z-10 border-t border-white/10 pt-8 mt-auto">
+          <p className="text-gray-300 italic mb-4">"SK Store is the only catalog we trust for our aerospace prototyping. Their quality control and delivery speed are unmatched in the industry."</p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80" alt="Dr. Robert Chen" className="w-full h-full object-cover" />
+            </div>
+            <div>
+              <p className="text-white font-bold text-sm">Dr. Robert Chen</p>
+              <p className="text-gray-400 text-xs uppercase tracking-wider">Lead Hardware Engineer</p>
             </div>
           </div>
         </div>
 
-        {/* RIGHT SIDE: Form Panel */}
-        <div className="w-full md:w-7/12 p-6 md:p-12 flex flex-col relative">
+      </div>
+
+      {/* --- RIGHT SIDE: LOGIN FORM --- */}
+      <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-6 sm:p-12 lg:p-20 bg-white">
+        
+        {/* Mobile Header */}
+        <div className="lg:hidden w-full max-w-[440px] mb-8">
+          <Link href="/" className="inline-block text-3xl font-black text-gray-900">
+            SK<span className="text-blue-600">.</span>
+          </Link>
+        </div>
+
+        <div className="w-full max-w-[440px]">
           
-          {/* Top Right Toggle */}
-          <div className="absolute top-8 right-8 md:top-10 md:right-12 hidden sm:flex items-center gap-2 text-sm z-10">
-            <span className="text-gray-500">
-              {isLogin ? "Don't have an account?" : "Already a member?"}
-            </span>
-            <button 
-              onClick={toggleMode}
-              disabled={isLoading}
-              className="font-bold text-[#1a1a2e] hover:text-blue-600 transition-colors flex items-center gap-1 disabled:opacity-50"
+          <div className="mb-10">
+            <motion.h2 
+              key={isLogin ? 'loginTitle' : 'signupTitle'}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-3xl font-black text-gray-900 tracking-tight"
             >
-              {isLogin ? "Sign up" : "Sign in"}
-              <ArrowLongRightIcon className="h-4 w-4" />
-            </button>
+              {isLogin ? "Welcome back" : "Create your account"}
+            </motion.h2>
+            <motion.p 
+              key={isLogin ? 'loginDesc' : 'signupDesc'}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="text-gray-500 text-sm mt-2 font-medium"
+            >
+              {isLogin ? "Enter your details to securely access your workspace." : "Join over 50,000 engineers and makers today."}
+            </motion.p>
           </div>
 
-          <div className="flex-1 flex flex-col justify-center max-w-md w-full mx-auto mt-8 sm:mt-0">
-            
-            <h1 className="text-3xl font-black text-[#1a1a2e] mb-8 transition-all">
-              {isLogin ? "Welcome Back" : "Create Account"}
-            </h1>
-
-            {/* Success Message Banner */}
-            {successMessage && (
-              <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-xl flex items-center gap-3 animate-fade-in">
-                <CheckCircleIcon className="h-5 w-5 text-green-600 shrink-0" />
-                <p className="text-sm font-bold">{successMessage}</p>
-              </div>
+          {/* Alerts */}
+          <AnimatePresence mode="wait">
+            {errorMsg && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0, y: -10 }} 
+                animate={{ opacity: 1, height: 'auto', y: 0 }} 
+                exit={{ opacity: 0, height: 0, y: -10 }}
+                className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-semibold border border-red-100 flex items-center gap-3 mb-6"
+              >
+                <ExclamationCircleIcon className="h-5 w-5 shrink-0" />
+                {errorMsg}
+              </motion.div>
             )}
+            {successMsg && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0, y: -10 }} 
+                animate={{ opacity: 1, height: 'auto', y: 0 }} 
+                exit={{ opacity: 0, height: 0, y: -10 }}
+                className="bg-green-50 text-green-700 p-4 rounded-xl text-sm font-semibold border border-green-200 flex items-center gap-3 mb-6"
+              >
+                <CheckCircleIcon className="h-5 w-5 shrink-0" />
+                {successMsg}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-            {/* Google OAuth Button */}
-            <button 
-              onClick={handleGoogleSignIn}
-              disabled={isLoading}
-              type="button"
-              className="w-full bg-[#1a1a2e] hover:bg-[#2a2a4a] text-white rounded-full py-3.5 px-4 flex items-center justify-center gap-3 transition-all shadow-sm font-medium text-sm mb-6 disabled:opacity-70 disabled:cursor-not-allowed active:scale-[0.98]"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-              </svg>
-              {isLogin ? "Sign in with Google" : "Sign up with Google"}
-            </button>
+          {/* Form */}
+          <form onSubmit={handleFormSubmit} className="space-y-4">
+            
+            <AnimatePresence initial={false}>
+              {!isLogin && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden"
+                >
+                  <div className="pb-1">
+                    <FloatingInput 
+                      label="Full Name"
+                      name="name"
+                      type="text"
+                      icon={UserIcon}
+                      value={formData.name}
+                      onChange={handleChange}
+                      required={!isLogin}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {/* Divider */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="h-px bg-gray-200 flex-1"></div>
-              <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Or using email</span>
-              <div className="h-px bg-gray-200 flex-1"></div>
-            </div>
+            <FloatingInput 
+              label="Email Address"
+              name="email"
+              type="email"
+              icon={EnvelopeIcon}
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
 
-            {/* Main Form */}
-            <form onSubmit={handleFormSubmit} className="space-y-4">
-              
-              {/* Dynamic Fields: Name & Username only show on Sign Up */}
-              <div className={`space-y-4 overflow-hidden transition-all duration-500 ease-in-out ${isLogin ? 'max-h-0 opacity-0' : 'max-h-50 opacity-100'}`}>
-                <div>
-                  <label className="block text-xs font-bold text-[#1a1a2e] mb-1.5 ml-1">Name</label>
-                  <input 
-                    type="text" 
-                    name="name"
-                    required={!isLogin}
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full bg-[#f4f5f7] border-transparent rounded-xl px-4 py-3.5 text-sm outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#1a1a2e] mb-1.5 ml-1">Email or Phone no.</label>
-                <input 
-                  type="text" 
-                  name="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full bg-[#f4f5f7] border-transparent rounded-xl px-4 py-3.5 text-sm outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                />
-              </div>
-
-              <div className={`space-y-4 overflow-hidden transition-all duration-500 ease-in-out ${isLogin ? 'max-h-0 opacity-0' : 'max-h-25 opacity-100'}`}>
-                <div>
-                  <label className="block text-xs font-bold text-[#1a1a2e] mb-1.5 ml-1">Username</label>
-                  <input 
-                    type="text" 
-                    name="username"
-                    required={!isLogin}
-                    value={formData.username}
-                    onChange={handleChange}
-                    className="w-full bg-[#f4f5f7] border-transparent rounded-xl px-4 py-3.5 text-sm outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-end mb-1.5 ml-1 pr-1">
-                  <label className="block text-xs font-bold text-[#1a1a2e]">Password</label>
-                  {isLogin && (
-                    <button type="button" className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors">
-                      Forgot Password?
-                    </button>
-                  )}
-                </div>
-                <div className="relative">
-                  <input 
-                    type={showPassword ? "text" : "password"} 
-                    name="password"
-                    required
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="w-full bg-[#f4f5f7] border-transparent rounded-xl pl-4 pr-12 py-3.5 text-sm outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-[#1a1a2e] transition-colors"
-                  >
-                    {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+            <div className="relative">
+              <FloatingInput 
+                label="Password"
+                name="password"
+                type="password"
+                icon={LockClosedIcon}
+                value={formData.password}
+                onChange={handleChange}
+                required
+                isPassword
+                showPassword={showPassword}
+                onTogglePassword={() => setShowPassword(!showPassword)}
+              />
+              {isLogin && (
+                <div className="absolute top-3 right-12 z-20">
+                  <button type="button" className="text-[10px] font-bold text-gray-400 hover:text-blue-600 uppercase tracking-wider transition-colors">
+                    Forgot?
                   </button>
                 </div>
-              </div>
-
-              {!isLogin && (
-                <div className="flex items-center gap-2 pt-2 transition-all">
-                  <input 
-                    type="checkbox" 
-                    id="termsAccepted" 
-                    name="termsAccepted"
-                    checked={formData.termsAccepted}
-                    onChange={handleChange}
-                    className="w-4 h-4 rounded text-[#1a1a2e] border-gray-300 focus:ring-[#1a1a2e] cursor-pointer" 
-                    required 
-                  />
-                  <label htmlFor="termsAccepted" className="text-xs text-gray-500 cursor-pointer select-none">
-                    I agree to all <span className="font-bold text-[#1a1a2e]">terms</span> and <span className="font-bold text-[#1a1a2e]">Privacy Policy</span>
-                  </label>
-                </div>
               )}
+            </div>
 
+            <AnimatePresence initial={false}>
+              {!isLogin && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-1">
+                    <FloatingInput 
+                      label="Confirm Password"
+                      name="confirmPassword"
+                      type="password"
+                      icon={LockClosedIcon}
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      required={!isLogin}
+                      isPassword
+                      showPassword={showPassword}
+                      onTogglePassword={() => setShowPassword(!showPassword)}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="pt-4">
               <button 
                 type="submit" 
                 disabled={isLoading}
-                className="w-full bg-[#1a1a2e] hover:bg-[#2a2a4a] text-white rounded-full py-3.5 font-bold text-sm transition-all mt-4 shadow-md flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed active:scale-[0.98]"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 font-bold text-sm transition-all shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed active:scale-[0.98] group"
               >
                 {isLoading ? (
                   <>
@@ -259,26 +393,50 @@ export default function LoginPage() {
                     Processing...
                   </>
                 ) : (
-                  isLogin ? "Log in" : "Sign up"
+                  <>
+                    {isLogin ? "Sign In Securely" : "Create Account"}
+                    <ArrowRightIcon className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </>
                 )}
               </button>
-            </form>
-
-            {/* Mobile Toggle (Visible only on small screens) */}
-            <div className="mt-8 text-center sm:hidden">
-              <span className="text-gray-500 text-sm">
-                {isLogin ? "Don't have an account? " : "Already have an account? "}
-              </span>
-              <button 
-                onClick={toggleMode}
-                disabled={isLoading}
-                className="font-bold text-[#1a1a2e] hover:text-blue-600 transition-colors text-sm"
-              >
-                {isLogin ? "Sign up" : "Log in"}
-              </button>
             </div>
+          </form>
 
+          {/* Divider */}
+          <div className="flex items-center gap-4 my-8">
+            <div className="h-px bg-gray-100 flex-1"></div>
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Or continue with</span>
+            <div className="h-px bg-gray-100 flex-1"></div>
           </div>
+
+          {/* Google OAuth (Mocked) */}
+          <button 
+            type="button"
+            className="w-full bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl py-3.5 flex items-center justify-center gap-3 transition-all font-bold text-sm active:scale-[0.98]"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+            </svg>
+            Google
+          </button>
+
+          {/* Bottom Toggle */}
+          <div className="mt-8 text-center">
+            <span className="text-gray-500 text-sm font-medium">
+              {isLogin ? "New to SK Store? " : "Already have an account? "}
+            </span>
+            <button 
+              onClick={toggleMode}
+              disabled={isLoading}
+              className="font-bold text-blue-600 hover:text-blue-800 transition-colors text-sm ml-1"
+            >
+              {isLogin ? "Create an account" : "Sign in here"}
+            </button>
+          </div>
+
         </div>
       </div>
     </div>

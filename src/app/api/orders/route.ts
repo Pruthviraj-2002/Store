@@ -2,17 +2,9 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '../../../lib/supabase';
 
 const buildOrderPayload = (body: any) => ({
-  order_id: body.order_id || `SK-${Date.now().toString().slice(-6)}`,
-  customer_name: body.customer_name || 'Guest Customer',
-  customer_email: body.customer_email || '',
-  shipping_address: body.shipping_address || '',
-  phone: body.phone || '',
-  items: body.items || [],
-  total: Number(body.total) || 0,
-  status: body.status || 'Pending',
-  currency: body.currency || 'INR',
-  created_at: body.created_at || new Date().toISOString(),
-  expected_delivery: body.expected_delivery || '',
+  status: body.status || 'pending',
+  total_amount: Number(body.total) || 0,
+  customer_email: body.customer_email || 'guest@example.com',
 });
 
 export async function POST(request: Request) {
@@ -61,7 +53,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ orders: data ?? [] });
+    const formattedOrders = (data ?? []).map((o: any) => ({
+       id: o.id,
+       order_id: o.id,
+       customer_name: 'Guest Customer',
+       customer_email: o.customer_email,
+       total: o.total_amount,
+       status: o.status,
+       created_at: o.created_at,
+       items: [] // In the future we can join order_items here
+    }));
+
+    return NextResponse.json({ orders: formattedOrders });
   } catch (error) {
     console.error('Order lookup failed:', error);
     return NextResponse.json({ error: 'Unable to load orders' }, { status: 500 });
@@ -79,14 +82,10 @@ export async function PATCH(request: Request) {
   try {
     const recordId = body.id || body.order_id;
     const updates = {
-      status: body.status || 'Pending',
-      updated_at: new Date().toISOString(),
+      status: body.status || 'pending',
     };
 
     let query = supabase.from('orders').update(updates).eq('id', recordId);
-    if (!recordId) {
-      query = supabase.from('orders').update(updates).eq('order_id', body.order_id);
-    }
 
     const { data, error } = await query.select('*').single();
 

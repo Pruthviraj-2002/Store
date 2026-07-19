@@ -56,7 +56,7 @@ export default function OrdersPage() {
     }, 5000);
 
     return () => {
-      supabaseBrowser.removeChannel(channel);
+      supabaseBrowser?.removeChannel(channel);
       clearInterval(interval);
     };
   }, []);

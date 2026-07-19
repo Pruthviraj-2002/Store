@@ -2,7 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase';
 
 export class ProductRepository {
   /**
-   * Fetches a fully hydrated product object suitable for the frontend Product Page.
+   * Fetches a fully hydrated product object suitable for the frontend Product Page
    */
   static async getProductBySlug(slug: string) {
     const supabase = createServerSupabaseClient();

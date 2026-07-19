@@ -35,7 +35,7 @@ export default function ContactPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           
-          {/* Contact Information Cards */}
+          {/* Contact Information Card */}
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm flex flex-col items-center text-center">
               <div className="h-12 w-12 bg-blue-50 rounded-full flex items-center justify-center mb-4">

@@ -10,6 +10,7 @@ import {
   CubeIcon
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as SolidCheckCircle } from '@heroicons/react/24/solid';
+import { supabaseBrowser } from '@/lib/supabase';
 
 export default function TrackOrderPage() {
   const [orderId, setOrderId] = useState("");
@@ -19,18 +20,12 @@ export default function TrackOrderPage() {
   const [orderDetails, setOrderDetails] = useState<any | null>(null);
   const [trackError, setTrackError] = useState<string | null>(null);
 
-  const handleTrackOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!orderId || !email) {
-      setTrackError('Please provide both order ID and email');
-      return;
-    }
-
+  const fetchOrderDetails = async (searchOrderId: string, searchEmail: string) => {
     setIsLoading(true);
     setTrackError(null);
 
     try {
-      const response = await fetch(`/api/orders?orderId=${encodeURIComponent(orderId)}&email=${encodeURIComponent(email)}`);
+      const response = await fetch(`/api/orders?orderId=${encodeURIComponent(searchOrderId)}&email=${encodeURIComponent(searchEmail)}`);
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result.error || 'Unable to find order');
@@ -43,6 +38,7 @@ export default function TrackOrderPage() {
         setIsTracking(false);
       } else {
         setOrderDetails(order);
+        setOrderId(order.order_number || order.order_id || searchOrderId);
         setIsTracking(true);
       }
     } catch (error) {
@@ -53,6 +49,59 @@ export default function TrackOrderPage() {
       setIsLoading(false);
     }
   };
+
+  const handleTrackOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderId || !email) {
+      setTrackError('Please provide both order ID and email');
+      return;
+    }
+    fetchOrderDetails(orderId, email);
+  };
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const qOrderId = urlParams.get('orderId');
+      const qEmail = urlParams.get('email');
+      
+      if (qOrderId && qEmail) {
+        setOrderId(qOrderId);
+        setEmail(qEmail);
+        fetchOrderDetails(qOrderId, qEmail);
+      }
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!orderDetails?.id) return;
+
+    const channel = supabaseBrowser
+      .channel(`order_tracking_${orderDetails.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${orderDetails.id}`
+        },
+        (payload) => {
+          if (payload.new) {
+            setOrderDetails((prev: any) => ({
+              ...prev,
+              status: payload.new.status,
+              // Update any other fields you want to be reactive here
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabaseBrowser.removeChannel(channel);
+    };
+  }, [orderDetails?.id]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -118,7 +167,7 @@ export default function TrackOrderPage() {
               {/* Header */}
               <div className="bg-gray-900 text-white p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold">Order #{orderDetails.order_id || orderId.toUpperCase()}</h2>
+                  <h2 className="text-xl font-bold">Order #{orderDetails.order_number || orderDetails.order_id || orderId.toUpperCase()}</h2>
                   <p className="text-gray-400 text-sm mt-1">Placed on {new Date(orderDetails.created_at || Date.now()).toLocaleDateString()}</p>
                 </div>
                 <div className="text-left md:text-right">
@@ -128,46 +177,68 @@ export default function TrackOrderPage() {
               </div>
 
               {/* Progress Timeline */}
-              <div className="p-8 md:p-12 overflow-x-auto">
-                <div className="min-w-150">
-                  <div className="flex justify-between items-center relative">
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-gray-200 z-0 rounded"></div>
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[66%] h-1 bg-blue-600 z-0 rounded"></div>
+              {(() => {
+                const status = orderDetails.status || 'pending';
+                let progress = '33%'; // Default paid
+                let isProcessing = false;
+                let isShipped = false;
+                let isDelivered = false;
+                
+                if (status === 'packed') {
+                  progress = '66%';
+                  isProcessing = true;
+                } else if (status === 'shipped') {
+                  progress = '80%';
+                  isProcessing = true;
+                  isShipped = true;
+                } else if (status === 'delivered') {
+                  progress = '100%';
+                  isProcessing = true;
+                  isShipped = true;
+                  isDelivered = true;
+                } else if (status === 'cancelled' || status === 'returned' || status === 'refunded') {
+                  progress = '0%';
+                } else if (status === 'paid') {
+                  progress = '33%';
+                }
 
-                    <div className="relative z-10 flex flex-col items-center">
-                      <div className="h-10 w-10 bg-blue-600 text-white rounded-full flex items-center justify-center border-4 border-white shadow-sm">
-                        <SolidCheckCircle className="h-6 w-6" />
-                      </div>
-                      <p className="mt-3 font-bold text-gray-900 text-sm">Order Placed</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{orderDetails.created_at ? new Date(orderDetails.created_at).toLocaleTimeString() : 'Pending'}</p>
-                    </div>
+                return (
+                  <div className="p-8 md:p-12 overflow-x-auto">
+                    <div className="min-w-[600px]">
+                      <div className="flex justify-between relative">
+                        {/* The line should be vertically centered relative to the 16px (h-4) circles, so top-2 (8px) */}
+                        <div className="absolute left-0 top-2 w-full h-[2px] bg-gray-100 z-0"></div>
+                        <div className={`absolute left-0 top-2 h-[2px] ${status === 'cancelled' ? 'bg-red-500' : 'bg-gray-900'} z-0 transition-all duration-1000`} style={{ width: progress }}></div>
 
-                    <div className="relative z-10 flex flex-col items-center">
-                      <div className="h-10 w-10 bg-blue-600 text-white rounded-full flex items-center justify-center border-4 border-white shadow-sm">
-                        <CubeIcon className="h-5 w-5" />
-                      </div>
-                      <p className="mt-3 font-bold text-gray-900 text-sm">Processing</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{orderDetails.processing_at ? new Date(orderDetails.processing_at).toLocaleDateString() : 'Pending'}</p>
-                    </div>
+                        {/* Order Placed */}
+                        <div className="relative z-10 flex flex-col items-center">
+                          <div className={`h-4 w-4 rounded-full border-2 ${status === 'cancelled' ? 'border-red-500 bg-red-500' : 'border-gray-900 bg-gray-900'}`}></div>
+                          <p className="mt-4 font-medium text-gray-900 text-sm">Order Placed</p>
+                          <p className="text-xs text-gray-500 mt-1">{orderDetails.created_at ? new Date(orderDetails.created_at).toLocaleDateString() : 'Pending'}</p>
+                        </div>
 
-                    <div className="relative z-10 flex flex-col items-center">
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 border-white shadow-sm ${orderDetails.status === 'Shipped' ? 'bg-white border-blue-600 text-blue-600 animate-pulse' : 'bg-white border-gray-300 text-gray-300'}`}>
-                        <TruckIcon className="h-5 w-5" />
-                      </div>
-                      <p className={`mt-3 font-bold text-sm ${orderDetails.status === 'Shipped' ? 'text-blue-700' : 'text-gray-400'}`}>{orderDetails.status || 'Shipped'}</p>
-                      <p className="text-xs text-blue-600 mt-0.5">In Transit</p>
-                    </div>
+                        {/* Packed */}
+                        <div className="relative z-10 flex flex-col items-center">
+                          <div className={`h-4 w-4 rounded-full border-2 transition-colors duration-500 ${isProcessing ? 'border-gray-900 bg-gray-900' : 'border-gray-200 bg-white'}`}></div>
+                          <p className={`mt-4 font-medium text-sm ${isProcessing ? 'text-gray-900' : 'text-gray-400'}`}>Packed</p>
+                        </div>
 
-                    <div className="relative z-10 flex flex-col items-center">
-                      <div className="h-10 w-10 bg-white border-2 border-gray-300 text-gray-300 rounded-full flex items-center justify-center">
-                        <MapPinIcon className="h-5 w-5" />
+                        {/* Shipped */}
+                        <div className="relative z-10 flex flex-col items-center">
+                          <div className={`h-4 w-4 rounded-full border-2 transition-colors duration-500 ${isShipped ? 'border-gray-900 bg-gray-900' : 'border-gray-200 bg-white'}`}></div>
+                          <p className={`mt-4 font-medium text-sm ${isShipped ? 'text-gray-900' : 'text-gray-400'}`}>Shipped</p>
+                        </div>
+
+                        {/* Delivered */}
+                        <div className="relative z-10 flex flex-col items-center">
+                          <div className={`h-4 w-4 rounded-full border-2 transition-colors duration-500 ${isDelivered ? 'border-gray-900 bg-gray-900' : 'border-gray-200 bg-white'}`}></div>
+                          <p className={`mt-4 font-medium text-sm ${isDelivered ? 'text-gray-900' : 'text-gray-400'}`}>Delivered</p>
+                        </div>
                       </div>
-                      <p className="mt-3 font-medium text-gray-400 text-sm">Delivered</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Pending</p>
                     </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

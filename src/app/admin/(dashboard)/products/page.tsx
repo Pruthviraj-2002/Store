@@ -45,6 +45,7 @@ export default function ProductManager() {
   
   // Form Data
   const [formData, setFormData] = useState(emptyForm);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   // Fetch initial data on load
   useEffect(() => {
@@ -132,12 +133,28 @@ export default function ProductManager() {
 
     if (editingId) {
       // UPDATE existing
+      let finalCategoryId = formData.category_id || null;
+      if (formData.category_id === 'NEW' && newCategoryName.trim() !== '') {
+        const catSlug = newCategoryName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
+        const { data: newCat, error: catErr } = await supabase.from('categories').insert([{
+          name: newCategoryName.trim(),
+          slug: catSlug
+        }]).select().single();
+        
+        if (catErr) {
+          alert('Error creating new category: ' + catErr.message);
+          setIsSaving(false);
+          return;
+        }
+        finalCategoryId = newCat.id;
+      }
+
       const currentProduct = products.find(p => p.id === editingId);
       const variant_id = currentProduct?.variant_id;
 
       const { error: pErr } = await supabase.from('products').update({
         name: formData.name,
-        category_id: formData.category_id || null,
+        category_id: finalCategoryId,
       }).eq('id', editingId);
 
       if (!pErr && variant_id) {
@@ -162,12 +179,28 @@ export default function ProductManager() {
       await fetchData();
     } else {
       // INSERT new
+      let finalCategoryId = formData.category_id || null;
+      if (formData.category_id === 'NEW' && newCategoryName.trim() !== '') {
+        const catSlug = newCategoryName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
+        const { data: newCat, error: catErr } = await supabase.from('categories').insert([{
+          name: newCategoryName.trim(),
+          slug: catSlug
+        }]).select().single();
+        
+        if (catErr) {
+          alert('Error creating new category: ' + catErr.message);
+          setIsSaving(false);
+          return;
+        }
+        finalCategoryId = newCat.id;
+      }
+      
       const slug = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
       
       const { data: pData, error: pErr } = await supabase.from('products').insert([{
         name: formData.name,
         slug: slug,
-        category_id: formData.category_id || null,
+        category_id: finalCategoryId,
       }]).select().single();
       
       if (pErr || !pData) {
@@ -314,8 +347,16 @@ export default function ProductManager() {
                     {categories.map(cat => (
                       <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
+                    <option value="NEW" className="font-bold text-blue-600">+ Create New Category...</option>
                   </select>
                 </div>
+
+                {formData.category_id === 'NEW' && (
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 animate-fade-in-up">
+                    <label className="block text-sm font-bold text-blue-900 mb-1">New Category Name *</label>
+                    <input required type="text" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} className="w-full px-4 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900" placeholder="e.g. Microcontrollers" />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Image URL</label>

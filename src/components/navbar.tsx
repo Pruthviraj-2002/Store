@@ -141,12 +141,20 @@ export default function Navbar() {
                     <p className="text-sm font-bold text-gray-900 truncate">{user.email}</p>
                   </div>
                   <Link
-                    href="/track-order"
+                    href="/profile"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border-b border-gray-100"
+                  >
+                    <UserIcon className="h-5 w-5" />
+                    My Profile
+                  </Link>
+                  <Link
+                    href="/my-orders"
                     onClick={() => setIsProfileMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
                   >
                     <ClipboardDocumentListIcon className="h-5 w-5" />
-                    My Orders
+                    Track Order
                   </Link>
                   <button
                     onClick={handleLogout}

@@ -5,8 +5,11 @@ import Navbar from '@/components/navbar';
 import Sidebar from '@/components/sidebar';
 import ProductCard from '@/components/ProductCard';
 import { useStore } from '@/store/useStore';
+import { useSearchParams } from 'next/navigation';
 
 export default function ShopPage() {
+  const searchParams = useSearchParams();
+  const q = searchParams?.get('q') || '';
   const { selectedCategory, addToCart, realtimeUpdateTrigger } = useStore();
   const prevTrigger = React.useRef(realtimeUpdateTrigger);
   
@@ -48,14 +51,36 @@ export default function ShopPage() {
 
   // The Bulletproof Filter: Handles nested Supabase relational data
   const filteredProducts = products.filter(product => {
-    if (selectedCategory === "All Categories" || !selectedCategory) return true;
+    // 1. Category Filter
+    let categoryMatch = true;
+    if (selectedCategory && selectedCategory !== "All Categories") {
+      categoryMatch = (
+        product.category === selectedCategory ||
+        product.category_id === selectedCategory ||
+        product.categories?.name === selectedCategory ||
+        product.categories?.slug === selectedCategory
+      );
+    }
     
-    return (
-      product.category === selectedCategory ||             // If your API formats it flat
-      product.category_id === selectedCategory ||          // If sidebar passes the raw ID
-      product.categories?.name === selectedCategory ||     // If Supabase returns the joined Name
-      product.categories?.slug === selectedCategory        // If Supabase returns the joined Slug
-    );
+    // 2. Search Query Filter
+    let searchMatch = true;
+    if (q.trim()) {
+      const searchTerm = q.toLowerCase();
+      // Safely check if variants exists and is an array or object
+      const variants = Array.isArray(product.product_variants) 
+        ? product.product_variants 
+        : product.product_variants ? [product.product_variants] : [];
+        
+      const sku = variants[0]?.sku || '';
+      
+      searchMatch = (
+        (product.name || '').toLowerCase().includes(searchTerm) ||
+        (product.description || '').toLowerCase().includes(searchTerm) ||
+        sku.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    return categoryMatch && searchMatch;
   });
 
   return (
@@ -77,7 +102,7 @@ export default function ShopPage() {
             <div className="mb-8 pb-4 border-b border-gray-200 flex justify-between items-end">
               <div>
                 <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
-                  {selectedCategory || "All Categories"}
+                  {q ? `Search Results for "${q}"` : (selectedCategory || "All Categories")}
                 </h1>
                 <p className="text-gray-500 mt-2 font-medium">
                   {isLoading ? "Loading inventory..." : `Showing ${filteredProducts.length} results`}

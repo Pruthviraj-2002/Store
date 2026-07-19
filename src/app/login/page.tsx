@@ -42,7 +42,7 @@ const FloatingInput = ({
         {label}
       </label>
       <input 
-        type={isPassword && !showPassword ? 'password' : type}
+        type={isPassword ? (showPassword ? 'text' : 'password') : type}
         name={name}
         required={required}
         value={value}
@@ -125,9 +125,13 @@ export default function AuthPage() {
         });
         if (error) throw error;
         
-        setUser(data.user);
-        setSuccessMsg("Account created successfully!");
-        setTimeout(() => router.push('/'), 1000);
+        if (!data.session) {
+          setSuccessMsg("Account created! Please check your email for the verification link.");
+        } else {
+          setUser(data.user);
+          setSuccessMsg("Account created successfully!");
+          setTimeout(() => router.push('/'), 1000);
+        }
       }
     } catch (error: any) {
       console.error("Auth Error:", error);
@@ -136,6 +140,25 @@ export default function AuthPage() {
       else if (error?.message) msg = error.message;
       setErrorMsg(msg);
     } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    setErrorMsg("");
+    
+    try {
+      const { error } = await supabaseBrowser.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      console.error("Google Auth Error:", error);
+      setErrorMsg(error.message || "An error occurred with Google Sign In.");
       setIsLoading(false);
     }
   };
@@ -409,10 +432,12 @@ export default function AuthPage() {
             <div className="h-px bg-gray-100 flex-1"></div>
           </div>
 
-          {/* Google OAuth (Mocked) */}
+          {/* Google OAuth */}
           <button 
             type="button"
-            className="w-full bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl py-3.5 flex items-center justify-center gap-3 transition-all font-bold text-sm active:scale-[0.98]"
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
+            className="w-full bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl py-3.5 flex items-center justify-center gap-3 transition-all font-bold text-sm active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />

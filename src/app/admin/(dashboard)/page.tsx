@@ -16,8 +16,9 @@ interface ProductRow {
 
 interface OrderRow {
   id: string;
-  customer_email: string;
-  total_amount: number;
+  customer_email?: string;
+  profiles?: { email: string };
+  grand_total: number;
   status: string;
   created_at: string;
 }
@@ -79,20 +80,29 @@ export default function AdminDashboard() {
     }
 
     // 2. Fetch Orders for metrics
-    const { data: ordersData } = await supabase
-      .from('orders')
-      .select('total_amount, status, created_at, customer_email')
-      .order('created_at', { ascending: false });
+    let ordersData: any[] = [];
+    try {
+      const res = await fetch('/api/orders');
+      const json = await res.json();
+      ordersData = json.orders || [];
+    } catch (e) {
+      console.error(e);
+    }
 
     // 3. Fetch Customers count
-    const { count: customersCount } = await supabase
-      .from('profiles')
-      .select('*', { count: 'exact', head: true });
+    let customersCount = 0;
+    try {
+      const res = await fetch('/api/customers');
+      const json = await res.json();
+      customersCount = (json.customers || []).length;
+    } catch (e) {
+      console.error(e);
+    }
 
     if (ordersData) {
       const revenue = ordersData
-        .filter(o => o.status !== 'cancelled')
-        .reduce((sum, o) => sum + Number(o.total_amount), 0);
+        .filter((o: any) => o.status !== 'cancelled')
+        .reduce((sum: number, o: any) => sum + Number(o.total || o.grand_total || 0), 0);
         
       setMetrics({
         totalRevenue: revenue,
@@ -101,7 +111,14 @@ export default function AdminDashboard() {
       });
       
       // Top 5 recent orders
-      setRecentOrders(ordersData.slice(0, 5) as OrderRow[]);
+      const mappedRecent = ordersData.slice(0, 5).map((o: any) => ({
+        id: o.id || o.order_id,
+        customer_email: o.customer_email || 'Guest',
+        grand_total: Number(o.total || o.grand_total || 0),
+        status: o.status,
+        created_at: o.created_at
+      }));
+      setRecentOrders(mappedRecent as OrderRow[]);
     }
 
     if (!isBackground) setIsLoading(false);
@@ -225,13 +242,13 @@ export default function AdminDashboard() {
                     <td colSpan={4} className="px-6 py-12 text-center text-gray-500">No orders yet.</td>
                   </tr>
                 ) : (
-                  recentOrders.map((order, i) => (
+                  recentOrders.map((order: any, i: number) => (
                     <tr key={i} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4 font-medium text-gray-900">{order.customer_email || 'Guest'}</td>
                       <td className="px-6 py-4 text-gray-500">
                         {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
-                      <td className="px-6 py-4 font-bold">₹{Number(order.total_amount).toFixed(2)}</td>
+                      <td className="px-6 py-4 font-bold">₹{Number(order.grand_total).toFixed(2)}</td>
                       <td className="px-6 py-4">
                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider
                             ${order.status === 'delivered' ? 'bg-green-100 text-green-700' : 

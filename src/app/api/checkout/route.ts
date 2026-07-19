@@ -41,9 +41,10 @@ export async function POST(request: Request) {
 
       if (variantData) {
         const variantId = variantData.id;
-        const currentStock = Array.isArray(variantData.inventory) 
-          ? variantData.inventory[0]?.quantity 
-          : variantData.inventory?.quantity || 0;
+        const inventory: any = variantData.inventory;
+        const currentStock = Array.isArray(inventory) 
+          ? inventory[0]?.quantity 
+          : inventory?.quantity || 0;
 
         // Check if we have enough stock
         if (currentStock < item.qty) {
@@ -58,9 +59,9 @@ export async function POST(request: Request) {
           ]);
 
         // Decrement Inventory (This will trigger the Real-time listeners!)
-        const inventoryId = Array.isArray(variantData.inventory) 
-          ? variantData.inventory[0]?.id 
-          : variantData.inventory?.id;
+        const inventoryId = Array.isArray(inventory) 
+          ? inventory[0]?.id 
+          : inventory?.id;
           
         if (inventoryId) {
           await supabase

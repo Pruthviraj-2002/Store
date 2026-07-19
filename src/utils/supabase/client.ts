@@ -16,9 +16,6 @@ export function createAdminClient() {
         name: 'sb-admin-auth-token',
       },
       isSingleton: false,
-      auth: {
-        multiTab: false, // Prevents BroadcastChannel from leaking the admin login event to the storefront!
-      }
     }
   )
 }

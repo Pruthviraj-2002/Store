@@ -41,6 +41,7 @@ export default function RealtimeProvider() {
     }
 
     const fetchCart = async () => {
+      if (!supabaseBrowser) return;
       console.log("Fetching cart for user:", user.id);
       const { data, error } = await supabaseBrowser
         .from('carts')
@@ -87,6 +88,7 @@ export default function RealtimeProvider() {
     if (isInitialLoad.current || !user || !supabaseBrowser) return;
 
     const timeout = setTimeout(async () => {
+      if (!supabaseBrowser) return;
       console.log("Syncing cart to DB...", cartItems);
       const { error } = await supabaseBrowser
         .from('carts')

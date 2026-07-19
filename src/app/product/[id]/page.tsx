@@ -26,6 +26,7 @@ interface Product {
   stock: number;
   mfrPartNo?: string;
   sktPartNo?: string;
+  sku?: string;
   rating?: number;
   reviews?: number;
   questions?: number;

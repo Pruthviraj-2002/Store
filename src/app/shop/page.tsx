@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import Navbar from '@/components/navbar';
 import Sidebar from '@/components/sidebar';
 import ProductCard from '@/components/ProductCard';
 import { useStore } from '@/store/useStore';
 import { useSearchParams } from 'next/navigation';
 
-export default function ShopPage() {
+function ShopContent() {
   const searchParams = useSearchParams();
   const q = searchParams?.get('q') || '';
   const { selectedCategory, addToCart, realtimeUpdateTrigger } = useStore();
@@ -136,5 +136,13 @@ export default function ShopPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#fafafa] flex items-center justify-center">Loading shop...</div>}>
+      <ShopContent />
+    </Suspense>
   );
 }

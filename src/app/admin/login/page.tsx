@@ -54,7 +54,7 @@ export default function AdminLogin() {
       <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-sm border border-gray-100">
         <form onSubmit={handleLogin} className="space-y-6">
 
-          {/* Error Message  */}
+          {/* Error Message Display */}
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium border border-red-100 text-center">
               {error}

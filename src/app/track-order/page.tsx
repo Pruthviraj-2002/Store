@@ -74,7 +74,7 @@ export default function TrackOrderPage() {
   }, []);
 
   React.useEffect(() => {
-    if (!orderDetails?.id) return;
+    if (!orderDetails?.id || !supabaseBrowser) return;
 
     const channel = supabaseBrowser
       .channel(`order_tracking_${orderDetails.id}`)
@@ -99,7 +99,7 @@ export default function TrackOrderPage() {
       .subscribe();
 
     return () => {
-      supabaseBrowser.removeChannel(channel);
+      supabaseBrowser?.removeChannel(channel);
     };
   }, [orderDetails?.id]);
 

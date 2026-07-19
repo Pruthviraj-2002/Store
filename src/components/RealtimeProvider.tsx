@@ -16,18 +16,20 @@ export default function RealtimeProvider() {
     if (!supabaseBrowser) return;
 
     // Check active session
-    supabaseBrowser.auth.getSession().then(({ data: { session } }) => {
+    supabaseBrowser?.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
 
     // Listen for auth changes (login, logout, token refresh)
     const {
       data: { subscription },
-    } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
+    } = supabaseBrowser?.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-    });
+    }) || { data: { subscription: null } };
 
-    return () => subscription.unsubscribe();
+    return () => {
+      if (subscription) subscription.unsubscribe();
+    }
   }, [setUser]);
 
   // Pull cart on login

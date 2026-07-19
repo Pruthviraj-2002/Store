@@ -149,6 +149,10 @@ export default function AuthPage() {
     setErrorMsg("");
     
     try {
+      if (!supabaseBrowser) {
+        throw new Error("Supabase client is not initialized");
+      }
+      
       const { error } = await supabaseBrowser.auth.signInWithOAuth({
         provider: 'google',
         options: {

@@ -41,7 +41,7 @@ export async function GET() {
     if (ordersError) throw ordersError;
 
     // Aggregate data
-    const customers = (profilesData || []).map((profile) => {
+    const customers = (profilesData || []).map((profile: any) => {
       // Find orders for this user
       const userOrders = (orders || []).filter((o) => o.profile_id === profile.id);
       

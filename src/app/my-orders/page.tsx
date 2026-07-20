@@ -165,15 +165,17 @@ export default function MyOrdersPage() {
                 </div>
 
                 {/* Right side: Action */}
-                <div className="shrink-0 flex items-center justify-end">
+                <div className="shrink-0 flex flex-col md:flex-row items-center justify-end gap-3">
+                  <a 
+                    href={`/invoice/${order.order_id || order.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-sm hover:shadow transition-all active:scale-95 w-full md:w-auto justify-center"
+                  >
+                    Invoice
+                  </a>
                   <button 
                     onClick={() => {
-                      // Navigate to track order and automatically fill it using query params
-                      // Since /track-order doesn't currently read query params on load, 
-                      // we can just route there and the user can type it, OR we can implement 
-                      // a small fix in track-order to read it, but for now we'll route there.
-                      // Wait! The user is logged in, so they can just type the ID, or we can copy it.
-                      // actually read it, so we can route there with the friendly order number.
                       router.push(`/track-order?orderId=${order.order_number || order.order_id}&email=${encodeURIComponent(user.email || '')}`);
                     }}
                     className="flex items-center gap-2 px-6 py-2.5 bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 font-bold rounded-xl border border-gray-200 hover:border-blue-200 transition-all active:scale-95 w-full md:w-auto justify-center"

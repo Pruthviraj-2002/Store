@@ -33,6 +33,7 @@ export default function AdminDashboard() {
     totalRevenue: 0,
     totalOrders: 0,
     totalCustomers: 0,
+    cancelledOrders: 0,
   });
   
   const [isLoading, setIsLoading] = useState(true);
@@ -100,14 +101,16 @@ export default function AdminDashboard() {
     }
 
     if (ordersData) {
-      const revenue = ordersData
-        .filter((o: any) => o.status !== 'cancelled')
-        .reduce((sum: number, o: any) => sum + Number(o.total || o.grand_total || 0), 0);
+      const validOrders = ordersData.filter((o: any) => !['cancelled', 'returned', 'refunded'].includes((o.status || '').toLowerCase()));
+      const cancelledOrders = ordersData.filter((o: any) => ['cancelled', 'returned', 'refunded'].includes((o.status || '').toLowerCase()));
+      
+      const revenue = validOrders.reduce((sum: number, o: any) => sum + Number(o.total || o.grand_total || 0), 0);
         
       setMetrics({
         totalRevenue: revenue,
-        totalOrders: ordersData.length,
+        totalOrders: validOrders.length,
         totalCustomers: customersCount || 0,
+        cancelledOrders: cancelledOrders.length,
       });
       
       // Top 5 recent orders
@@ -162,7 +165,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         
         {/* Revenue Card */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
@@ -206,13 +209,27 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-gray-500 text-sm uppercase tracking-wider">Stock Alerts</h3>
-            <div className="h-10 w-10 bg-red-50 group-hover:bg-red-100 rounded-xl flex items-center justify-center transition-colors">
-              <CubeIcon className="h-5 w-5 text-red-600" />
+            <div className="h-10 w-10 bg-orange-50 group-hover:bg-orange-100 rounded-xl flex items-center justify-center transition-colors">
+              <CubeIcon className="h-5 w-5 text-orange-600" />
             </div>
           </div>
           <p className="text-3xl font-black text-gray-900">{lowStockCount + outOfStockCount}</p>
-          <p className="text-xs text-red-600 font-medium mt-2 flex items-center">
+          <p className="text-xs text-orange-600 font-medium mt-2 flex items-center">
              Items need restocking
+          </p>
+        </div>
+
+        {/* Cancelled Orders Card */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-500 text-sm uppercase tracking-wider">Cancelled</h3>
+            <div className="h-10 w-10 bg-red-50 group-hover:bg-red-100 rounded-xl flex items-center justify-center transition-colors">
+              <TrashIcon className="h-5 w-5 text-red-600" />
+            </div>
+          </div>
+          <p className="text-3xl font-black text-gray-900">{metrics.cancelledOrders}</p>
+          <p className="text-xs text-red-600 font-medium mt-2 flex items-center">
+             Unfulfilled orders
           </p>
         </div>
 

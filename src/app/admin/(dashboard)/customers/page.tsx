@@ -16,6 +16,22 @@ export default function CustomersPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
+  const [customerOrders, setCustomerOrders] = useState<any[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
+  const handleViewCustomer = async (customer: any) => {
+    setSelectedCustomer(customer);
+    setIsLoadingOrders(true);
+    try {
+      const res = await fetch(`/api/orders?profileId=${customer.id}`);
+      const data = await res.json();
+      setCustomerOrders(data.orders || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
 
   const fetchCustomers = async () => {
     try {
@@ -127,6 +143,7 @@ export default function CustomersPage() {
                 <th className="px-6 py-4">Customer</th>
                 <th className="px-6 py-4">Registered</th>
                 <th className="px-6 py-4">Orders</th>
+                <th className="px-6 py-4">Cancelled</th>
                 <th className="px-6 py-4">Total Spent</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Actions</th>
@@ -163,6 +180,7 @@ export default function CustomersPage() {
                     </td>
                     <td className="px-6 py-4 text-gray-500">{customer.registered}</td>
                     <td className="px-6 py-4 font-medium">{customer.totalOrders}</td>
+                    <td className="px-6 py-4 font-medium text-red-500">{customer.cancelledOrders > 0 ? customer.cancelledOrders : '-'}</td>
                     <td className="px-6 py-4 font-medium text-green-600">
                       ₹{customer.totalSpent.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
@@ -180,7 +198,7 @@ export default function CustomersPage() {
                           <EnvelopeIcon className="h-5 w-5" />
                         </a>
                         <button 
-                          onClick={() => setSelectedCustomer(customer)}
+                          onClick={() => handleViewCustomer(customer)}
                           className="text-gray-400 hover:text-gray-900 transition-colors p-1" 
                           title="View Profile"
                         >
@@ -239,13 +257,43 @@ export default function CustomersPage() {
                 </div>
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                   <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Total Orders</p>
-                  <p className="font-semibold text-gray-900">{selectedCustomer.totalOrders}</p>
+                  <p className="font-semibold text-gray-900">{selectedCustomer.totalOrders} <span className="text-gray-400 font-normal text-sm">({selectedCustomer.cancelledOrders} cancelled)</span></p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                   <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Lifetime Value</p>
                   <p className="font-bold text-green-600">₹{selectedCustomer.totalSpent.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
                 </div>
               </div>
+
+              {/* Individual Orders List */}
+              <div className="mt-6">
+                <h4 className="font-bold text-gray-900 text-sm border-b border-gray-100 pb-2 mb-3">Order History</h4>
+                {isLoadingOrders ? (
+                  <div className="text-center py-4 text-sm text-gray-500 flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500"></div> Loading orders...
+                  </div>
+                ) : customerOrders.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">No orders found.</p>
+                ) : (
+                  <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                    {customerOrders.map(order => (
+                      <div key={order.id} className="flex justify-between items-center p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                        <div>
+                          <p className="font-bold text-gray-900 text-sm">#{order.order_number || order.id.split('-')[0]}</p>
+                          <p className="text-xs text-gray-500">{new Date(order.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${['cancelled', 'returned', 'refunded'].includes(order.status.toLowerCase()) ? 'text-red-500' : 'text-green-600'}`}>
+                            {order.status}
+                          </p>
+                          <p className="text-sm font-bold text-gray-900">₹{Number(order.total || order.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
             </div>
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
               <button 

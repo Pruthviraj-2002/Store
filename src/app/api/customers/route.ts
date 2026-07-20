@@ -46,8 +46,13 @@ export async function GET() {
       const userOrders = (orders || []).filter((o) => o.profile_id === profile.id);
       
       // Calculate totals
-      const totalOrders = userOrders.length;
-      const totalSpent = userOrders.reduce((sum, order) => sum + (Number(order.grand_total) || 0), 0);
+      const validOrdersCount = userOrders.filter(o => !['cancelled', 'returned', 'refunded'].includes((o.status || '').toLowerCase())).length;
+      const cancelledOrdersCount = userOrders.filter(o => ['cancelled', 'returned', 'refunded'].includes((o.status || '').toLowerCase())).length;
+      
+      const totalSpent = userOrders.reduce((sum, order) => {
+        if (['cancelled', 'returned', 'refunded'].includes((order.status || '').toLowerCase())) return sum;
+        return sum + (Number(order.grand_total) || 0);
+      }, 0);
 
       let status = 'Active';
       if (profile.is_admin) status = 'Admin';
@@ -58,7 +63,8 @@ export async function GET() {
         name: profile.full_name || 'Guest User',
         email: profile.email,
         registered: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : 'N/A',
-        totalOrders,
+        totalOrders: validOrdersCount,
+        cancelledOrders: cancelledOrdersCount,
         totalSpent,
         status,
         is_admin: profile.is_admin

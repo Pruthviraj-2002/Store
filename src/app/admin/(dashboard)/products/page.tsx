@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createAdminClient } from '@/utils/supabase/client';
+import { MagnifyingGlassIcon, FunnelIcon, ArrowsUpDownIcon } from '@heroicons/react/24/outline';
 
 const emptyForm = {
   name: '',
@@ -46,6 +47,12 @@ export default function ProductManager() {
   // Form Data
   const [formData, setFormData] = useState(emptyForm);
   const [newCategoryName, setNewCategoryName] = useState('');
+
+  // Advanced UI State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedStatus, setSelectedStatus] = useState("All");
+  const [sortOption, setSortOption] = useState("Newest");
 
   // Fetch initial data on load
   useEffect(() => {
@@ -231,6 +238,59 @@ export default function ProductManager() {
     setIsSaving(false);
   };
 
+  // Derived state: Filtered & Sorted products
+  const processedProducts = useMemo(() => {
+    let result = [...products];
+
+    // 1. Search Filter
+    if (searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(p => 
+        p.name.toLowerCase().includes(query) || 
+        p.sku.toLowerCase().includes(query)
+      );
+    }
+
+    // 2. Category Filter
+    if (selectedCategory !== "All") {
+      result = result.filter(p => p.category_id === selectedCategory);
+    }
+
+    // 3. Status Filter
+    if (selectedStatus !== "All") {
+      result = result.filter(p => {
+        const status = p.stock === 0 ? 'Out of Stock' : p.stock < 20 ? 'Low Stock' : 'Active';
+        return status === selectedStatus;
+      });
+    }
+
+    // 4. Sorting
+    switch (sortOption) {
+      case "Name (A-Z)":
+        result.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "Name (Z-A)":
+        result.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      case "Price (Low to High)":
+        result.sort((a, b) => a.price - b.price);
+        break;
+      case "Price (High to Low)":
+        result.sort((a, b) => b.price - a.price);
+        break;
+      case "Stock (Lowest First)":
+        result.sort((a, b) => a.stock - b.stock);
+        break;
+      case "Stock (Highest First)":
+        result.sort((a, b) => b.stock - a.stock);
+        break;
+      default:
+        break; 
+    }
+
+    return result;
+  }, [products, searchQuery, selectedCategory, selectedStatus, sortOption]);
+
   return (
     <div className="p-8">
       {/* Header section */}
@@ -247,8 +307,75 @@ export default function ProductManager() {
         </button>
       </div>
 
+      {/* Advanced Toolbar */}
+      <div className="bg-white rounded-t-xl border border-gray-200 border-b-0 overflow-hidden">
+        <div className="p-4 bg-gray-50/50 flex flex-col lg:flex-row gap-4 justify-between items-center">
+          {/* Search Bar */}
+          <div className="relative w-full lg:w-96 shrink-0">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search by name or SKU..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-gray-900 placeholder:text-gray-400 shadow-sm"
+            />
+          </div>
+
+          {/* Filters & Sorts */}
+          <div className="flex flex-wrap lg:flex-nowrap items-center gap-3 w-full lg:w-auto">
+            <div className="relative flex items-center flex-1 lg:flex-none">
+              <FunnelIcon className="h-4 w-4 text-gray-400 absolute left-3 pointer-events-none" />
+              <select 
+                value={selectedCategory} 
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full lg:w-48 pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-gray-700 appearance-none shadow-sm cursor-pointer"
+              >
+                <option value="All">All Categories</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="relative flex items-center flex-1 lg:flex-none">
+              <FunnelIcon className="h-4 w-4 text-gray-400 absolute left-3 pointer-events-none" />
+              <select 
+                value={selectedStatus} 
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full lg:w-48 pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-gray-700 appearance-none shadow-sm cursor-pointer"
+              >
+                <option value="All">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Low Stock">Low Stock</option>
+                <option value="Out of Stock">Out of Stock</option>
+              </select>
+            </div>
+
+            <div className="relative flex items-center w-full lg:w-auto">
+              <ArrowsUpDownIcon className="h-4 w-4 text-gray-400 absolute left-3 pointer-events-none" />
+              <select 
+                value={sortOption} 
+                onChange={(e) => setSortOption(e.target.value)}
+                className="w-full lg:w-56 pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-gray-700 appearance-none shadow-sm cursor-pointer"
+              >
+                <option value="Newest">Sort by: Newest</option>
+                <option value="Name (A-Z)">Name (A-Z)</option>
+                <option value="Name (Z-A)">Name (Z-A)</option>
+                <option value="Price (Low to High)">Price (Low to High)</option>
+                <option value="Price (High to Low)">Price (High to Low)</option>
+                <option value="Stock (Lowest First)">Stock (Lowest First)</option>
+                <option value="Stock (Highest First)">Stock (Highest First)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Main Data Table */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-b-xl shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-12 text-center text-gray-500 font-medium">Loading inventory...</div>
         ) : products.length === 0 ? (
@@ -269,7 +396,7 @@ export default function ProductManager() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {products.map((product) => {
+                {processedProducts.map((product) => {
                   const imageSrc = product.image_url || product.img || '';
                   return (
                   <tr key={product.id} className="hover:bg-gray-50 transition-colors">

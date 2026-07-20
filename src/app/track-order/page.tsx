@@ -202,17 +202,43 @@ export default function TrackOrderPage() {
                   progress = '33%';
                 }
 
+                if (status === 'cancelled' || status === 'returned' || status === 'refunded') {
+                  return (
+                    <div className="p-8 md:p-12 overflow-x-auto">
+                      <div className="min-w-[400px]">
+                        <div className="flex justify-between relative">
+                          <div className="absolute left-0 top-2 w-full h-[2px] bg-red-100 z-0"></div>
+                          <div className="absolute left-0 top-2 h-[2px] bg-red-500 z-0 transition-all duration-1000" style={{ width: '100%' }}></div>
+
+                          {/* Order Placed */}
+                          <div className="relative z-10 flex flex-col items-center">
+                            <div className="h-4 w-4 rounded-full border-2 border-red-500 bg-red-500"></div>
+                            <p className="mt-4 font-medium text-gray-900 text-sm">Order Placed</p>
+                            <p className="text-xs text-gray-500 mt-1">{orderDetails.created_at ? new Date(orderDetails.created_at).toLocaleDateString() : 'Pending'}</p>
+                          </div>
+
+                          {/* Cancelled/Returned/Refunded */}
+                          <div className="relative z-10 flex flex-col items-center">
+                            <div className="h-4 w-4 rounded-full border-2 border-red-500 bg-red-500"></div>
+                            <p className="mt-4 font-bold text-red-600 text-sm uppercase tracking-wide">{status}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div className="p-8 md:p-12 overflow-x-auto">
                     <div className="min-w-[600px]">
                       <div className="flex justify-between relative">
                         {/* The line should be vertically centered relative to the 16px (h-4) circles, so top-2 (8px) */}
                         <div className="absolute left-0 top-2 w-full h-[2px] bg-gray-100 z-0"></div>
-                        <div className={`absolute left-0 top-2 h-[2px] ${status === 'cancelled' ? 'bg-red-500' : 'bg-gray-900'} z-0 transition-all duration-1000`} style={{ width: progress }}></div>
+                        <div className={`absolute left-0 top-2 h-[2px] bg-gray-900 z-0 transition-all duration-1000`} style={{ width: progress }}></div>
 
                         {/* Order Placed */}
                         <div className="relative z-10 flex flex-col items-center">
-                          <div className={`h-4 w-4 rounded-full border-2 ${status === 'cancelled' ? 'border-red-500 bg-red-500' : 'border-gray-900 bg-gray-900'}`}></div>
+                          <div className="h-4 w-4 rounded-full border-2 border-gray-900 bg-gray-900"></div>
                           <p className="mt-4 font-medium text-gray-900 text-sm">Order Placed</p>
                           <p className="text-xs text-gray-500 mt-1">{orderDetails.created_at ? new Date(orderDetails.created_at).toLocaleDateString() : 'Pending'}</p>
                         </div>

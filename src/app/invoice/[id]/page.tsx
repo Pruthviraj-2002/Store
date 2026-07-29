@@ -3,14 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 
-// 1. Expanded TypeScript interfaces for strict compliance
+// 1. TypeScript Interfaces
 interface OrderItem {
   name: string;
   sku: string;
-  hsn: string; // Harmonized System of Nomenclature code
+  hsn: string;
   price: number;
   qty: number;
-  tax_rate: number; // e.g., 18 for 18% GST
+  tax_rate: number;
 }
 
 interface Order {
@@ -21,79 +21,95 @@ interface Order {
   shipping_address: string;
   phone: string;
   status: string;
-  transaction_id: string; // Payment reference
+  transaction_id: string;
   payment_method: string;
-  place_of_supply: string; // Required for GST (e.g., "36 - Telangana")
-  customer_gstin?: string; // Optional for B2B transactions
+  place_of_supply: string;
+  customer_gstin?: string;
   items: OrderItem[];
   subtotal: number;
   discount_amount: number;
-  cgst_amount: number; // Central GST
-  sgst_amount: number; // State GST
-  igst_amount: number; // Integrated GST
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
   total: number;
 }
 
-// --- DEMO DATA ---
-// I've populated this with realistic sample data matching your screenshot and location.
-const demoOrder: Order = {
-  id: "ORD-48105",
-  order_number: "ORD-48105",
-  created_at: "2026-07-29T10:00:00Z",
-  customer_name: "Alpha Alone",
-  shipping_address: "48-250/1 Suryanagar, Chintal,\nQuthbullapur, Hyderabad, Telangana\n500037, India",
-  phone: "+91-9533486486",
-  status: "paid",
-  transaction_id: "UPI_TXN_9876543210AB",
-  payment_method: "Online Payment (UPI)",
-  place_of_supply: "36 - Telangana",
-  customer_gstin: "36BXXXX9999B1Z2", // Sample Buyer GSTIN
-  items: [
-    {
-      name: "ESP32 NodeMCU",
-      sku: "IOT-ESP-32",
-      hsn: "8542", // Actual HSN code for electronic integrated circuits
-      price: 399.00,
-      qty: 1,
-      tax_rate: 18,
-    }
-  ],
-  subtotal: 399.00,
-  discount_amount: 0.00,
-  cgst_amount: 35.91, // 9% of 399
-  sgst_amount: 35.91, // 9% of 399
-  igst_amount: 0.00,  // 0 because it's an intra-state sale (Telangana to Telangana)
-  total: 470.82
-};
-
-// --- STORE DEMO DATA ---
+// 2. Store Details (Keep this static unless you have an API for store settings)
 const storeDetails = {
   name: "SK Store",
   legal_name: "SK Technologies Pvt. Ltd.",
   address: "Plot 12, Tech Park, Madhapur,\nHyderabad, Telangana 500081, India",
   email: "support@skstore.in",
   phone: "+91-9876543210",
-  gstin: "36AAAAA1234A1Z5", // Sample Seller GSTIN (36 is Telangana)
-  cin: "U72900TG2026PTC123456" // Sample Corporate Identification Number
+  gstin: "36AAAAA1234A1Z5", 
+  cin: "U72900TG2026PTC123456" 
 };
 
 export default function InvoicePage() {
   const params = useParams();
   const id = params?.id as string;
   
-  // Using our demo data as the default state so you can preview it immediately
-  const [order, setOrder] = useState<Order | null>(demoOrder);
-  const [isLoading, setIsLoading] = useState(false);
+  // 3. Set initial states to null and loading to true
+  const [order, setOrder] = useState<Order | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Auto-print effect commented out for demo purposes
-  // useEffect(() => {
-  //   if (!isLoading && order) {
-  //     setTimeout(() => window.print(), 750);
-  //   }
-  // }, [isLoading, order]);
+  // 4. DYNAMIC FETCHING LOGIC: This pulls the real data based on the URL ID
+  useEffect(() => {
+    async function fetchOrder() {
+      if (!id) return;
+      
+      try {
+        // Make sure this endpoint matches your actual backend route!
+        const res = await fetch(`/api/orders?orderId=${id}`);
+        
+        if (!res.ok) {
+          throw new Error("Failed to fetch order");
+        }
+        
+        const data = await res.json();
+        
+        // Assuming your API returns { orders: [ { ...orderData } ] }
+        if (data.orders && data.orders.length > 0) {
+          setOrder(data.orders[0]);
+        } else {
+          setError("Order not found.");
+        }
+      } catch (err) {
+        console.error("Error fetching order:", err);
+        setError("Could not load invoice data.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
 
-  if (isLoading || !order) return null;
+    fetchOrder();
+  }, [id]);
 
+  // 5. Loading and Error UI States
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-500 font-sans">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="h-8 w-8 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
+          <p>Fetching your invoice...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !order) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 text-red-500 font-sans">
+        <div className="text-center p-8 bg-white shadow-lg border border-red-100 rounded">
+          <h2 className="text-xl font-bold mb-2">Oops!</h2>
+          <p>{error || "Order not found."}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 6. The actual Invoice UI (Now using dynamic 'order' data)
   return (
     <div className="bg-gray-50 min-h-screen text-black font-sans print:bg-white print:p-0 p-8 flex justify-center">
       <style dangerouslySetInnerHTML={{
@@ -108,7 +124,6 @@ export default function InvoicePage() {
 
       <div className="invoice-container bg-white w-full max-w-[800px] mx-auto shadow-xl border border-gray-200 p-12 md:p-16 relative overflow-hidden rounded-sm">
 
-        {/* 1. Compliant Header with Seller Details */}
         <div className="flex justify-between items-start mb-12 relative z-10 border-b border-gray-200 pb-8">
           <div>
             <h1 className="text-4xl font-black tracking-tighter mb-2 leading-none">{storeDetails.name}</h1>
@@ -130,7 +145,6 @@ export default function InvoicePage() {
           </div>
         </div>
 
-        {/* 2. Bill To & Payment Info with Place of Supply */}
         <div className="flex justify-between items-start mb-10 relative z-10">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Billed To</h3>
@@ -156,7 +170,6 @@ export default function InvoicePage() {
           </div>
         </div>
 
-        {/* 3. Items Table with HSN */}
         <div className="mb-8 relative z-10">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -178,45 +191,43 @@ export default function InvoicePage() {
                     <p className="text-[10px] text-gray-500 pr-8">SKU: {item.sku}</p>
                   </td>
                   <td className="py-4 text-center align-top text-xs text-gray-500">{item.hsn}</td>
-                  <td className="py-4 text-right align-top text-sm font-medium text-gray-700">₹{item.price.toFixed(2)}</td>
+                  <td className="py-4 text-right align-top text-sm font-medium text-gray-700">₹{Number(item.price).toFixed(2)}</td>
                   <td className="py-4 text-center align-top text-sm font-medium text-gray-700">{item.qty}</td>
-                  <td className="py-4 text-right align-top text-sm font-bold">₹{(item.price * item.qty).toFixed(2)}</td>
+                  <td className="py-4 text-right align-top text-sm font-bold">₹{(Number(item.price) * Number(item.qty)).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {/* 4. Compliant Tax Breakdown */}
         <div className="flex justify-end mb-12 relative z-10">
           <div className="w-72">
             <div className="border-t border-gray-200 pt-3 mb-3 text-sm text-gray-600">
               <div className="flex justify-between mb-1.5">
                 <span>Taxable Amount (Subtotal)</span>
-                <span className="font-medium text-black">₹{order.subtotal.toFixed(2)}</span>
+                <span className="font-medium text-black">₹{Number(order.subtotal).toFixed(2)}</span>
               </div>
-              {order.discount_amount > 0 && (
+              {Number(order.discount_amount) > 0 && (
                 <div className="flex justify-between mb-1.5">
                   <span>Discount</span>
-                  <span className="font-medium text-red-500">- ₹{order.discount_amount.toFixed(2)}</span>
+                  <span className="font-medium text-red-500">- ₹{Number(order.discount_amount).toFixed(2)}</span>
                 </div>
               )}
-              {/* Split GST visualization */}
-              {order.cgst_amount > 0 && order.sgst_amount > 0 ? (
+              {Number(order.cgst_amount) > 0 && Number(order.sgst_amount) > 0 ? (
                 <>
                   <div className="flex justify-between mb-1.5 text-xs">
                     <span>CGST (9%)</span>
-                    <span className="font-medium text-gray-800">+ ₹{order.cgst_amount.toFixed(2)}</span>
+                    <span className="font-medium text-gray-800">+ ₹{Number(order.cgst_amount).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between mb-3 text-xs">
                     <span>SGST (9%)</span>
-                    <span className="font-medium text-gray-800">+ ₹{order.sgst_amount.toFixed(2)}</span>
+                    <span className="font-medium text-gray-800">+ ₹{Number(order.sgst_amount).toFixed(2)}</span>
                   </div>
                 </>
               ) : (
                 <div className="flex justify-between mb-3 text-xs">
                   <span>IGST (18%)</span>
-                  <span className="font-medium text-gray-800">+ ₹{order.igst_amount.toFixed(2)}</span>
+                  <span className="font-medium text-gray-800">+ ₹{Number(order.igst_amount || 0).toFixed(2)}</span>
                 </div>
               )}
             </div>
@@ -224,13 +235,12 @@ export default function InvoicePage() {
             <div className="border-t-2 border-black pt-3">
               <div className="flex justify-between items-center">
                 <span className="font-black text-lg uppercase tracking-wider">Grand Total</span>
-                <span className="font-black text-2xl">₹{order.total.toFixed(2)}</span>
+                <span className="font-black text-2xl">₹{Number(order.total).toFixed(2)}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 5. Terms, Conditions & Digital Signature */}
         <div className="border-t border-gray-200 pt-6 mt-8 flex justify-between items-end">
           <div className="max-w-[60%]">
             <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Terms & Conditions</h4>
@@ -242,7 +252,6 @@ export default function InvoicePage() {
           </div>
           <div className="text-right flex flex-col items-end">
             <div className="h-12 w-32 border-b border-gray-300 mb-2 flex items-end justify-center pb-1">
-               {/* Optional: Add an actual image of a signature here */}
                <span className="text-gray-300 text-xs italic">SK Store Auth</span>
             </div>
             <p className="text-[10px] font-bold text-gray-800">Authorized Signatory</p>

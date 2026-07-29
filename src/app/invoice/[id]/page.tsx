@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 
-// 1. TypeScript Interfaces
+// 1. Strict TypeScript Interfaces
 interface OrderItem {
   name: string;
   sku: string;
@@ -34,33 +34,33 @@ interface Order {
   total: number;
 }
 
-// 2. Store Details (Keep this static unless you have an API for store settings)
+// 2. Updated Store Details for SK Technologies
 const storeDetails = {
-  name: "SK Store",
-  legal_name: "SK Technologies Pvt. Ltd.",
-  address: "Plot 12, Tech Park, Madhapur,\nHyderabad, Telangana 500081, India",
-  email: "support@skstore.in",
-  phone: "+91-9876543210",
-  gstin: "36AAAAA1234A1Z5", 
-  cin: "U72900TG2026PTC123456" 
+  name: "SK Technologies",
+  legal_name: "SK TECHNOLOGIES",
+  address: "11-146, opposite IDPL colony, Patwari Enclave, Adarsh Nagar,\nIDPL Colony, Balanagar, Hyderabad, Telangana 500037, India.",
+  email: "support@sktechnologies.co.in",
+  phone: "+91 7032948938",
+  // Update these with actual numbers if applicable, or remove them from the UI below if not registered
+  gstin: "Update_With_GSTIN", 
+  cin: "Update_With_CIN"      
 };
 
 export default function InvoicePage() {
   const params = useParams();
   const id = params?.id as string;
   
-  // 3. Set initial states to null and loading to true
+  // 3. State Management
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 4. DYNAMIC FETCHING LOGIC: This pulls the real data based on the URL ID
+  // 4. Dynamic API Fetching Logic
   useEffect(() => {
     async function fetchOrder() {
       if (!id) return;
       
       try {
-        // Make sure this endpoint matches your actual backend route!
         const res = await fetch(`/api/orders?orderId=${id}`);
         
         if (!res.ok) {
@@ -69,7 +69,6 @@ export default function InvoicePage() {
         
         const data = await res.json();
         
-        // Assuming your API returns { orders: [ { ...orderData } ] }
         if (data.orders && data.orders.length > 0) {
           setOrder(data.orders[0]);
         } else {
@@ -86,7 +85,7 @@ export default function InvoicePage() {
     fetchOrder();
   }, [id]);
 
-  // 5. Loading and Error UI States
+  // 5. Loading State UI
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-500 font-sans">
@@ -98,6 +97,7 @@ export default function InvoicePage() {
     );
   }
 
+  // 6. Error State UI
   if (error || !order) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50 text-red-500 font-sans">
@@ -109,7 +109,7 @@ export default function InvoicePage() {
     );
   }
 
-  // 6. The actual Invoice UI (Now using dynamic 'order' data)
+  // 7. Main Invoice UI
   return (
     <div className="bg-gray-50 min-h-screen text-black font-sans print:bg-white print:p-0 p-8 flex justify-center">
       <style dangerouslySetInnerHTML={{
@@ -124,14 +124,16 @@ export default function InvoicePage() {
 
       <div className="invoice-container bg-white w-full max-w-[800px] mx-auto shadow-xl border border-gray-200 p-12 md:p-16 relative overflow-hidden rounded-sm">
 
+        {/* Header section with Store Details */}
         <div className="flex justify-between items-start mb-12 relative z-10 border-b border-gray-200 pb-8">
           <div>
-            <h1 className="text-4xl font-black tracking-tighter mb-2 leading-none">{storeDetails.name}</h1>
+            <h1 className="text-3xl font-black tracking-tighter mb-2 leading-none">{storeDetails.name}</h1>
             <p className="font-bold text-xs text-gray-800">{storeDetails.legal_name}</p>
-            <p className="text-xs text-gray-600 whitespace-pre-line mt-1">{storeDetails.address}</p>
+            <p className="text-xs text-gray-600 whitespace-pre-line mt-1 max-w-[280px]">{storeDetails.address}</p>
             <div className="text-xs text-gray-600 mt-2 flex flex-col gap-0.5">
               <p>Email: {storeDetails.email}</p>
               <p>Phone: {storeDetails.phone}</p>
+              {/* Optional fields - remove if not applicable */}
               <p className="font-medium text-gray-800 mt-1">GSTIN: {storeDetails.gstin}</p>
               <p className="font-medium text-gray-800">CIN: {storeDetails.cin}</p>
             </div>
@@ -145,6 +147,7 @@ export default function InvoicePage() {
           </div>
         </div>
 
+        {/* Bill To & Payment Info */}
         <div className="flex justify-between items-start mb-10 relative z-10">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Billed To</h3>
@@ -170,6 +173,7 @@ export default function InvoicePage() {
           </div>
         </div>
 
+        {/* Items Table */}
         <div className="mb-8 relative z-10">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -200,6 +204,7 @@ export default function InvoicePage() {
           </table>
         </div>
 
+        {/* Totals & Tax Breakdown */}
         <div className="flex justify-end mb-12 relative z-10">
           <div className="w-72">
             <div className="border-t border-gray-200 pt-3 mb-3 text-sm text-gray-600">
@@ -241,6 +246,7 @@ export default function InvoicePage() {
           </div>
         </div>
 
+        {/* Footer with Terms and Auth Signature */}
         <div className="border-t border-gray-200 pt-6 mt-8 flex justify-between items-end">
           <div className="max-w-[60%]">
             <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Terms & Conditions</h4>
@@ -252,7 +258,7 @@ export default function InvoicePage() {
           </div>
           <div className="text-right flex flex-col items-end">
             <div className="h-12 w-32 border-b border-gray-300 mb-2 flex items-end justify-center pb-1">
-               <span className="text-gray-300 text-xs italic">SK Store Auth</span>
+               <span className="text-gray-300 text-xs italic">SK Technologies</span>
             </div>
             <p className="text-[10px] font-bold text-gray-800">Authorized Signatory</p>
             <p className="text-[9px] text-gray-400 mt-1 max-w-[200px]">
@@ -262,6 +268,7 @@ export default function InvoicePage() {
         </div>
       </div>
 
+      {/* Action Buttons */}
       <div className="fixed bottom-8 right-8 print-hide z-50 flex gap-4">
         <button
           onClick={() => window.print()}

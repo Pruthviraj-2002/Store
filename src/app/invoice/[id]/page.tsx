@@ -3,161 +3,278 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 
+// 1. Strict TypeScript Interfaces
+interface OrderItem {
+  name: string;
+  sku: string;
+  hsn: string;
+  price: number;
+  qty: number;
+  tax_rate: number;
+}
+
+interface Order {
+  id: string;
+  order_number: string;
+  created_at: string;
+  customer_name: string;
+  shipping_address: string;
+  phone: string;
+  status: string;
+  transaction_id: string;
+  payment_method: string;
+  place_of_supply: string;
+  customer_gstin?: string;
+  items: OrderItem[];
+  subtotal: number;
+  discount_amount: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+  total: number;
+}
+
+// 2. Updated Store Details for SK Technologies
+const storeDetails = {
+  name: "SK Technologies",
+  legal_name: "SK TECHNOLOGIES",
+  address: "11-146, opposite IDPL colony, Patwari Enclave, Adarsh Nagar,\nIDPL Colony, Balanagar, Hyderabad, Telangana 500037, India.",
+  email: "support@sktechnologies.co.in",
+  phone: "+91 7032948938",
+  // Update these with actual numbers if applicable, or remove them from the UI below if not registered
+  gstin: "Update_With_GSTIN", 
+  cin: "Update_With_CIN"      
+};
+
 export default function InvoicePage() {
   const params = useParams();
   const id = params?.id as string;
-  const [order, setOrder] = useState<any>(null);
+  
+  // 3. State Management
+  const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // 4. Dynamic API Fetching Logic
   useEffect(() => {
     async function fetchOrder() {
+      if (!id) return;
+      
       try {
         const res = await fetch(`/api/orders?orderId=${id}`);
+        
+        if (!res.ok) {
+          throw new Error("Failed to fetch order");
+        }
+        
         const data = await res.json();
+        
         if (data.orders && data.orders.length > 0) {
           setOrder(data.orders[0]);
+        } else {
+          setError("Order not found.");
         }
       } catch (err) {
-        console.error("Failed to fetch order:", err);
+        console.error("Error fetching order:", err);
+        setError("Could not load invoice data.");
       } finally {
         setIsLoading(false);
       }
     }
-    if (id) fetchOrder();
+
+    fetchOrder();
   }, [id]);
 
-  useEffect(() => {
-    if (!isLoading && order) {
-      // Small delay to ensure images/fonts load before printing
-      setTimeout(() => {
-        window.print();
-      }, 500);
-    }
-  }, [isLoading, order]);
-
+  // 5. Loading State UI
   if (isLoading) {
-    return <div className="p-10 text-center font-sans text-gray-500">Generating Invoice...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-500 font-sans">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="h-8 w-8 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
+          <p>Fetching your invoice...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (!order) {
-    return <div className="p-10 text-center font-sans text-red-500">Order not found.</div>;
+  // 6. Error State UI
+  if (error || !order) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 text-red-500 font-sans">
+        <div className="text-center p-8 bg-white shadow-lg border border-red-100 rounded">
+          <h2 className="text-xl font-bold mb-2">Oops!</h2>
+          <p>{error || "Order not found."}</p>
+        </div>
+      </div>
+    );
   }
 
+  // 7. Main Invoice UI
   return (
-    <div className="bg-white min-h-screen text-black font-sans print:p-0 p-8 flex justify-center">
+    <div className="bg-gray-50 min-h-screen text-black font-sans print:bg-white print:p-0 p-8 flex justify-center">
       <style dangerouslySetInnerHTML={{
         __html: `
         @media print {
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
-          footer, nav, .print-hide { display: none !important; }
-          @page { size: A4; margin: 0; }
-          .invoice-container { box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; padding: 40px !important; border: none !important; }
+          .print-hide { display: none !important; }
+          @page { size: A4; margin: 0.5cm; }
+          .invoice-container { box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; padding: 20px !important; border: none !important; }
         }
       `}} />
 
-      <div className="invoice-container bg-white w-full max-w-[800px] mx-auto shadow-2xl border border-gray-100 p-16 relative overflow-hidden">
+      <div className="invoice-container bg-white w-full max-w-[800px] mx-auto shadow-xl border border-gray-200 p-12 md:p-16 relative overflow-hidden rounded-sm">
 
-        {/* Header */}
-        <div className="flex justify-between items-start mb-16 relative z-10">
+        {/* Header section with Store Details */}
+        <div className="flex justify-between items-start mb-12 relative z-10 border-b border-gray-200 pb-8">
           <div>
-            <h1 className="text-3xl font-black tracking-tighter mb-2 leading-none">SK<br />Store</h1>
+            <h1 className="text-3xl font-black tracking-tighter mb-2 leading-none">{storeDetails.name}</h1>
+            <p className="font-bold text-xs text-gray-800">{storeDetails.legal_name}</p>
+            <p className="text-xs text-gray-600 whitespace-pre-line mt-1 max-w-[280px]">{storeDetails.address}</p>
+            <div className="text-xs text-gray-600 mt-2 flex flex-col gap-0.5">
+              <p>Email: {storeDetails.email}</p>
+              <p>Phone: {storeDetails.phone}</p>
+              {/* Optional fields - remove if not applicable */}
+              <p className="font-medium text-gray-800 mt-1">GSTIN: {storeDetails.gstin}</p>
+              <p className="font-medium text-gray-800">CIN: {storeDetails.cin}</p>
+            </div>
           </div>
           <div className="text-right">
-            <h2 className="text-4xl font-black uppercase tracking-widest mb-4">Invoice</h2>
+            <h2 className="text-3xl font-black uppercase tracking-widest mb-4 text-gray-800">Tax Invoice</h2>
             <div className="text-sm text-gray-600 flex flex-col gap-1">
-              <p>Invoice Number: <span className="font-medium text-black">#{order.order_number || order.id.substring(0, 8)}</span></p>
-              <p>Date: <span className="font-medium text-black">{new Date(order.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span></p>
+              <p>Invoice No: <span className="font-semibold text-black">#{order.order_number}</span></p>
+              <p>Date: <span className="font-semibold text-black">{new Date(order.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</span></p>
             </div>
           </div>
         </div>
 
-        {/* Bill To & Payment Method */}
-        <div className="flex justify-between items-start mb-12 relative z-10">
+        {/* Bill To & Payment Info */}
+        <div className="flex justify-between items-start mb-10 relative z-10">
           <div>
-            <h3 className="text-sm font-bold uppercase tracking-wider mb-2">Bill To:</h3>
-            <p className="font-bold text-lg leading-tight mb-1">{order.customer_name || order.customer_email || 'Customer'}</p>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Billed To</h3>
+            <p className="font-bold text-lg leading-tight mb-1">{order.customer_name}</p>
             <p className="text-sm text-gray-600 leading-snug whitespace-pre-line max-w-[250px]">
-              {order.shipping_address || 'Address not provided'}
+              {order.shipping_address}
             </p>
-            {order.phone && <p className="text-sm text-gray-600 mt-1">{order.phone}</p>}
+            <p className="text-sm text-gray-600 mt-1">{order.phone}</p>
+            <div className="mt-3 text-xs">
+              <p><span className="text-gray-500 font-semibold">Place of Supply:</span> <span className="font-medium">{order.place_of_supply}</span></p>
+              {order.customer_gstin && (
+                <p><span className="text-gray-500 font-semibold">Buyer GSTIN:</span> <span className="font-medium">{order.customer_gstin}</span></p>
+              )}
+            </div>
           </div>
           <div className="text-right">
-            <h3 className="text-sm font-bold uppercase tracking-wider mb-2">Payment Method</h3>
-            <p className="font-bold text-lg leading-tight mb-1">Online Payment</p>
-            <p className="text-sm text-gray-600 leading-snug">
-              Status: {order.status.toUpperCase()}
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Payment Details</h3>
+            <p className="font-bold text-base leading-tight mb-1">{order.payment_method}</p>
+            <p className="text-sm text-gray-600 leading-snug mb-1">
+              Status: <span className="font-bold text-green-600">{order.status.toUpperCase()}</span>
             </p>
+            <p className="text-xs text-gray-500 mt-2">Txn ID: {order.transaction_id}</p>
           </div>
         </div>
 
         {/* Items Table */}
-        <div className="mb-12 relative z-10">
+        <div className="mb-8 relative z-10">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b-2 border-black">
-                <th className="py-3 font-bold uppercase tracking-wider text-sm w-12">No</th>
-                <th className="py-3 font-bold uppercase tracking-wider text-sm">Item Description</th>
-                <th className="py-3 font-bold uppercase tracking-wider text-sm text-right w-24">Price</th>
-                <th className="py-3 font-bold uppercase tracking-wider text-sm text-center w-20">Qty</th>
-                <th className="py-3 font-bold uppercase tracking-wider text-sm text-right w-28">Total</th>
+                <th className="py-2 font-bold uppercase tracking-wider text-[10px] text-gray-500 w-8">No</th>
+                <th className="py-2 font-bold uppercase tracking-wider text-[10px] text-gray-500">Item Description</th>
+                <th className="py-2 font-bold uppercase tracking-wider text-[10px] text-gray-500 text-center w-16">HSN/SAC</th>
+                <th className="py-2 font-bold uppercase tracking-wider text-[10px] text-gray-500 text-right w-20">Price</th>
+                <th className="py-2 font-bold uppercase tracking-wider text-[10px] text-gray-500 text-center w-12">Qty</th>
+                <th className="py-2 font-bold uppercase tracking-wider text-[10px] text-gray-500 text-right w-24">Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {order.items?.map((item: any, idx: number) => {
-                const price = Number(item.price) || 0;
-                const qty = Number(item.qty) || 1;
-                return (
-                  <tr key={idx}>
-                    <td className="py-4 font-medium text-sm align-top">{idx + 1}</td>
-                    <td className="py-4 align-top">
-                      <p className="font-bold text-base mb-1">{item.name || 'Product Item'}</p>
-                      <p className="text-xs text-gray-500 leading-snug pr-8">SKU: {item.sku || 'N/A'}</p>
-                    </td>
-                    <td className="py-4 text-right align-top text-sm font-medium">₹{price.toFixed(2)}</td>
-                    <td className="py-4 text-center align-top text-sm font-medium">{qty}</td>
-                    <td className="py-4 text-right align-top text-sm font-medium">₹{(price * qty).toFixed(2)}</td>
-                  </tr>
-                );
-              })}
+              {order.items.map((item, idx) => (
+                <tr key={idx} className="group hover:bg-gray-50 transition-colors">
+                  <td className="py-4 font-medium text-xs align-top text-gray-400">{idx + 1}</td>
+                  <td className="py-4 align-top">
+                    <p className="font-bold text-sm mb-1">{item.name}</p>
+                    <p className="text-[10px] text-gray-500 pr-8">SKU: {item.sku}</p>
+                  </td>
+                  <td className="py-4 text-center align-top text-xs text-gray-500">{item.hsn}</td>
+                  <td className="py-4 text-right align-top text-sm font-medium text-gray-700">₹{Number(item.price).toFixed(2)}</td>
+                  <td className="py-4 text-center align-top text-sm font-medium text-gray-700">{item.qty}</td>
+                  <td className="py-4 text-right align-top text-sm font-bold">₹{(Number(item.price) * Number(item.qty)).toFixed(2)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
-        {/* Totals */}
-        <div className="flex justify-end mb-16 relative z-10">
-          <div className="w-64">
-            <div className="border-t-2 border-black pt-4 mb-4">
-              <div className="flex justify-between mb-2">
-                <span className="font-bold">Total</span>
-                <span>₹{(Number(order.total) || 0).toFixed(2)}</span>
+        {/* Totals & Tax Breakdown */}
+        <div className="flex justify-end mb-12 relative z-10">
+          <div className="w-72">
+            <div className="border-t border-gray-200 pt-3 mb-3 text-sm text-gray-600">
+              <div className="flex justify-between mb-1.5">
+                <span>Taxable Amount (Subtotal)</span>
+                <span className="font-medium text-black">₹{Number(order.subtotal).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between mb-2">
-                <span className="font-bold">Tax (GST)</span>
-                <span>₹{(Number(order.gst_amount) || 0).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between mb-4">
-                <span className="font-bold">Discount</span>
-                <span>₹{(Number(order.discount_amount) || 0).toFixed(2)}</span>
-              </div>
+              {Number(order.discount_amount) > 0 && (
+                <div className="flex justify-between mb-1.5">
+                  <span>Discount</span>
+                  <span className="font-medium text-red-500">- ₹{Number(order.discount_amount).toFixed(2)}</span>
+                </div>
+              )}
+              {Number(order.cgst_amount) > 0 && Number(order.sgst_amount) > 0 ? (
+                <>
+                  <div className="flex justify-between mb-1.5 text-xs">
+                    <span>CGST (9%)</span>
+                    <span className="font-medium text-gray-800">+ ₹{Number(order.cgst_amount).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between mb-3 text-xs">
+                    <span>SGST (9%)</span>
+                    <span className="font-medium text-gray-800">+ ₹{Number(order.sgst_amount).toFixed(2)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between mb-3 text-xs">
+                  <span>IGST (18%)</span>
+                  <span className="font-medium text-gray-800">+ ₹{Number(order.igst_amount || 0).toFixed(2)}</span>
+                </div>
+              )}
             </div>
-            <div className="border-t-2 border-black pt-4">
-              <div className="flex justify-between">
-                <span className="font-bold text-lg">Sub Total</span>
-                <span className="font-bold text-lg">₹{((Number(order.subtotal) > 0 ? Number(order.subtotal) : (Number(order.total) - Number(order.gst_amount) + Number(order.discount_amount))) || 0).toFixed(2)}</span>
+            
+            <div className="border-t-2 border-black pt-3">
+              <div className="flex justify-between items-center">
+                <span className="font-black text-lg uppercase tracking-wider">Grand Total</span>
+                <span className="font-black text-2xl">₹{Number(order.total).toFixed(2)}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Footer Info removed as per request */}      </div>
+        {/* Footer with Terms and Auth Signature */}
+        <div className="border-t border-gray-200 pt-6 mt-8 flex justify-between items-end">
+          <div className="max-w-[60%]">
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Terms & Conditions</h4>
+            <ul className="text-[10px] text-gray-500 list-disc list-inside space-y-1">
+              <li>All claims, if any, must be made within 7 days of delivery.</li>
+              <li>Goods once sold will not be taken back unless defective.</li>
+              <li>Subject to Hyderabad jurisdiction only.</li>
+            </ul>
+          </div>
+          <div className="text-right flex flex-col items-end">
+            <div className="h-12 w-32 border-b border-gray-300 mb-2 flex items-end justify-center pb-1">
+               <span className="text-gray-300 text-xs italic">SK Technologies</span>
+            </div>
+            <p className="text-[10px] font-bold text-gray-800">Authorized Signatory</p>
+            <p className="text-[9px] text-gray-400 mt-1 max-w-[200px]">
+              This is a computer-generated invoice and does not require a physical signature.
+            </p>
+          </div>
+        </div>
+      </div>
 
-      {/* Print button overlay (hidden during actual print) */}
-      <div className="fixed bottom-8 right-8 print-hide z-50">
+      {/* Action Buttons */}
+      <div className="fixed bottom-8 right-8 print-hide z-50 flex gap-4">
         <button
           onClick={() => window.print()}
-          className="bg-black text-white px-6 py-3 rounded-full font-bold shadow-xl hover:scale-105 transition-transform"
+          className="bg-black text-white px-8 py-4 rounded-full font-bold shadow-xl hover:bg-gray-800 hover:scale-105 transition-all flex items-center gap-2"
         >
-          Print Invoice
+          Print / Download PDF
         </button>
       </div>
     </div>

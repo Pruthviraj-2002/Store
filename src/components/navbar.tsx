@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   MagnifyingGlassIcon,
   UserIcon,
@@ -15,6 +15,7 @@ import { supabaseBrowser } from '@/lib/supabase';
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
 
   // Zustand State
   const cartTotalItems = useStore((state) => state.cartItems.reduce((total, item) => total + item.qty, 0));
@@ -187,8 +188,9 @@ export default function Navbar() {
         </div>
       </div>
 
-      <div className="border-t border-gray-100 bg-white hidden md:block">
-        <div className="max-w-[1600px] w-full mx-auto px-4 md:px-8 flex items-center justify-center gap-8 lg:gap-12">
+      {pathname !== '/shop' && (
+        <div className="border-t border-gray-100 bg-white hidden md:block">
+          <div className="max-w-[1600px] w-full mx-auto px-4 md:px-8 flex items-center justify-center gap-8 lg:gap-12">
           <button
             onClick={() => navigateToCategory("All Categories")}
             className={`py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 ${

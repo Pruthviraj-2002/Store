@@ -25,17 +25,19 @@ export default function Sidebar() {
     fetchCategories();
   }, []);
 
-  // This function sets the global state AND navigates to the shop
   const handleCategoryClick = (category: string) => {
     setSelectedCategory(category);
     router.push('/shop');
   };
 
   return (
-    <div className="bg-transparent w-full pb-8">
+    <div className="w-full pb-4 md:pb-8">
       
-      {/* Category List */}
-      <ul className="text-sm bg-white rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+      {/* =========================================
+          DESKTOP UI (Your original Web App code) 
+          Hidden on mobile (< 768px), visible on Desktop
+          ========================================= */}
+      <ul className="hidden md:block text-sm bg-white rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         
         {/* All Categories Button */}
         <li>
@@ -79,6 +81,44 @@ export default function Sidebar() {
           );
         })}
       </ul>
+
+      {/* =========================================
+          MOBILE UI (App Wrapper code) 
+          Visible on mobile, hidden on Desktop (>= 768px)
+          ========================================= */}
+      <div className="md:hidden flex overflow-x-auto gap-3 px-4 no-scrollbar snap-x">
+        
+        {/* All Categories Pill */}
+        <button
+          onClick={() => handleCategoryClick("All Categories")}
+          className={`snap-start whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 ${
+            selectedCategory === "All Categories"
+              ? "bg-[#0B1527] text-white shadow-md" 
+              : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+          }`}
+        >
+          All Categories
+        </button>
+
+        {/* Dynamic Category Pills */}
+        {categoryNames.map((name, index) => {
+          const isSelected = selectedCategory === name;
+          return (
+            <button
+              key={index}
+              onClick={() => handleCategoryClick(name)}
+              className={`snap-start whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 ${
+                isSelected
+                  ? "bg-[#0B1527] text-white shadow-md"
+                  : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+              }`}
+            >
+              {name}
+            </button>
+          );
+        })}
+      </div>
+
     </div>
   );
 }

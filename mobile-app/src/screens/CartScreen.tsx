@@ -37,7 +37,7 @@ export default function CartScreen({ navigation }: any) {
         renderItem={({ item }) => (
           <View className="flex-row bg-white rounded-2xl border border-gray-100 shadow-sm mb-4 p-4 items-center">
             <Image
-              source={{ uri: item.image_url || item.img || 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&q=80' }}
+              source={{ uri: item.image_url || 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&q=80' }}
               className="w-20 h-20 rounded-xl bg-gray-50"
               resizeMode="contain"
             />

@@ -151,7 +151,7 @@ export default function ProductDetailsScreen({ route, navigation }: any) {
               {features.length > 0 && (
                 <>
                   <Text className="text-lg font-bold text-gray-900 mb-4">Key Features</Text>
-                  {features.map((feature, idx) => (
+                  {features.map((feature: string, idx: number) => (
                     <View key={idx} className="flex-row items-start mb-2 pr-4">
                       <View className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-1.5 mr-3" />
                       <Text className="text-gray-700 text-sm">{feature}</Text>
@@ -163,7 +163,7 @@ export default function ProductDetailsScreen({ route, navigation }: any) {
           ) : (
             <View className="border border-gray-200 rounded-lg">
               {specs.length > 0 ? (
-                specs.map((spec, idx) => (
+                specs.map((spec: any, idx: number) => (
                   <View key={idx} className={`flex-row justify-between p-4 ${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'} ${idx !== specs.length - 1 ? 'border-b border-gray-200' : ''}`}>
                     <Text className="text-gray-500 font-medium w-1/3">{spec.label}</Text>
                     <Text className="text-gray-900 font-bold flex-1">{spec.value}</Text>

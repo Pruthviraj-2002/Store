@@ -37,7 +37,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
   return (
     <div 
-      className="group flex flex-col bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 hover:-translate-y-1 transition-all duration-300 h-full cursor-pointer overflow-hidden"
+      className="group flex flex-col bg-white rounded-2xl border-2 border-gray-200 shadow-lg hover:shadow-2xl hover:border-blue-500 hover:-translate-y-2 transition-all duration-300 h-full cursor-pointer overflow-hidden"
       onClick={() => setQuickViewProduct(product)}
     >
       
@@ -59,11 +59,11 @@ export default function ProductCard({ product }: { product: Product }) {
       </div>
 
       {/* --- CONTENT & ACTION BAR SECTION --- */}
-      <div className="p-5 flex flex-col flex-grow relative z-20 bg-white">
+      <div className="p-4 md:p-5 flex flex-col flex-grow relative z-20 bg-white">
         
-        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{product.category || 'Component'}</p>
+        <p className="text-[10px] md:text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{product.category || 'Component'}</p>
         
-        <h3 className="font-bold text-gray-900 text-base leading-snug line-clamp-2 mb-4 group-hover:text-blue-600 transition-colors">
+        <h3 className="font-bold text-gray-900 text-sm md:text-base leading-snug line-clamp-2 mb-4 group-hover:text-blue-600 transition-colors">
           {product.name}
         </h3>
 

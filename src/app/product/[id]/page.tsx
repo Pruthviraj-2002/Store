@@ -146,16 +146,10 @@ export default function ProductDetailsPage() {
     );
   }
 
-  const categoryName = product.categories?.name || product.category || 'Microcontrollers';
-  const description = product.description || product.desc || 'A premium quality component built for the highest performance standards, trusted by professionals worldwide for reliability and durability.';
+  const categoryName = product.categories?.name || product.category || 'Component';
+  const description = product.description || product.desc || 'No description available for this product.';
   
-  const specs = product.specs || [
-    { label: 'Core', value: 'High Performance' },
-    { label: 'Architecture', value: 'Next-Gen' },
-    { label: 'Speed', value: 'Ultra Fast' },
-    { label: 'Power Consumption', value: 'Low' },
-    { label: 'Operating Temperature', value: '-40°C to +85°C' },
-  ];
+  const specs = product.specs || [];
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans text-gray-900">
@@ -216,19 +210,6 @@ export default function ProductDetailsPage() {
                 {product.name}
               </h1>
               <div className="flex items-center gap-4 text-sm mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center text-yellow-400">
-                    {[...Array(5)].map((_, i) => (
-                      <StarIcon key={i} className={`h-4 w-4 ${i < Math.floor(product.rating || 4.8) ? 'text-yellow-400' : 'text-gray-200'}`} />
-                    ))}
-                  </div>
-                  <span className="font-bold text-gray-700">{product.rating || 4.8}</span>
-                </div>
-                <span className="text-gray-300">|</span>
-                <Link href="#reviews" className="text-gray-500 hover:text-indigo-600 font-medium">
-                  {product.reviews || 128} Reviews
-                </Link>
-                <span className="text-gray-300">|</span>
                 <span className="text-gray-500 font-medium">SKU: {product.sku || product.id.slice(0,8).toUpperCase()}</span>
               </div>
             </div>
@@ -333,31 +314,33 @@ export default function ProductDetailsPage() {
                 >
                   <div>
                     <h3 className="text-xl font-bold text-gray-900 mb-4">About this product</h3>
-                    <p className="text-gray-700 leading-relaxed mb-4 text-sm">{description}</p>
-                    <p className="text-gray-700 leading-relaxed text-sm mb-8">Designed for maximum efficiency and robust performance in demanding environments. This component represents the pinnacle of modern engineering.</p>
+                    <p className="text-gray-700 leading-relaxed mb-8 text-sm">{description}</p>
                     
-                    <h4 className="text-lg font-bold text-gray-900 mb-4">Key Features</h4>
-                    <ul className="list-disc pl-5 space-y-2 text-gray-700 text-sm">
-                      {(product.features || [
-                        'High-quality materials ensuring longevity',
-                        'Strict quality control and testing',
-                        'Optimized for superior performance',
-                        'Easy integration into existing setups'
-                      ]).map((feature, idx) => (
-                        <li key={idx} className="pl-1 leading-relaxed">{feature}</li>
-                      ))}
-                    </ul>
+                    {product.features && product.features.length > 0 && (
+                      <>
+                        <h4 className="text-lg font-bold text-gray-900 mb-4">Key Features</h4>
+                        <ul className="list-disc pl-5 space-y-2 text-gray-700 text-sm">
+                          {product.features.map((feature, idx) => (
+                            <li key={idx} className="pl-1 leading-relaxed">{feature}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
                   </div>
                   <div>
-                    <h4 className="font-bold text-gray-900 mb-4 text-xl">Quick Specs</h4>
-                    <ul className="border border-gray-200 rounded-lg divide-y divide-gray-200">
-                      {specs.slice(0, 5).map((spec, idx) => (
-                        <li key={idx} className="flex justify-between items-center p-3 text-sm">
-                          <span className="text-gray-500 font-medium">{spec.label}</span>
-                          <span className="text-gray-900 font-bold">{spec.value}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    {specs.length > 0 && (
+                      <>
+                        <h4 className="font-bold text-gray-900 mb-4 text-xl">Quick Specs</h4>
+                        <ul className="border border-gray-200 rounded-lg divide-y divide-gray-200">
+                          {specs.slice(0, 5).map((spec, idx) => (
+                            <li key={idx} className="flex justify-between items-center p-3 text-sm">
+                              <span className="text-gray-500 font-medium">{spec.label}</span>
+                              <span className="text-gray-900 font-bold">{spec.value}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -368,16 +351,20 @@ export default function ProductDetailsPage() {
                   initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={{ duration: 0.2 }}
                 >
                   <h3 className="text-xl font-bold text-gray-900 mb-6">Technical Specifications</h3>
-                  <table className="w-full text-sm text-left text-gray-700">
-                    <tbody className="divide-y divide-gray-200 border-t border-b border-gray-200">
-                      {specs.map((spec, idx) => (
-                        <tr key={idx} className={idx % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'}>
-                          <th className="py-3 px-4 font-medium text-gray-500 w-1/3">{spec.label}</th>
-                          <td className="py-3 px-4 font-bold text-gray-900">{spec.value}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  {specs.length > 0 ? (
+                    <table className="w-full text-sm text-left text-gray-700">
+                      <tbody className="divide-y divide-gray-200 border-t border-b border-gray-200">
+                        {specs.map((spec, idx) => (
+                          <tr key={idx} className={idx % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'}>
+                            <th className="py-3 px-4 font-medium text-gray-500 w-1/3">{spec.label}</th>
+                            <td className="py-3 px-4 font-bold text-gray-900">{spec.value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="text-gray-500 text-sm">No technical specifications available for this product.</p>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

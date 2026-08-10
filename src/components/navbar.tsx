@@ -73,9 +73,9 @@ export default function Navbar() {
   };
 
   return (
-    <div className="w-full bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm flex flex-col">
+    <div className="w-full bg-white border-b-2 border-gray-200 sticky top-0 z-50 shadow-xl flex flex-col">
       {/* Main Header */}
-      <div className="max-w-[1600px] w-full mx-auto h-20 px-4 md:px-8 flex items-center justify-between gap-12">
+      <div className="max-w-[1600px] w-full mx-auto h-20 px-4 md:px-8 flex items-center justify-between gap-4 md:gap-12">
 
         {/* Logo */}
         <Link href="/" className="shrink-0 flex items-center cursor-pointer hover:opacity-90 transition-opacity">
@@ -188,6 +188,26 @@ export default function Navbar() {
         </div>
       </div>
 
+      {/* Mobile Search Bar (Only visible on small screens below the header) */}
+      <div className="w-full px-4 pb-3 lg:hidden">
+        <form
+          onSubmit={handleSearch}
+          className="flex w-full items-center border border-gray-300 rounded-full bg-gray-50 hover:bg-white focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shadow-inner relative overflow-hidden"
+        >
+          <div className="pl-4 pr-2 py-2 text-gray-400">
+            <MagnifyingGlassIcon className="h-5 w-5" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search products..."
+            className="grow py-2.5 pr-4 outline-none text-sm text-gray-800 bg-transparent w-full font-medium"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <button type="submit" className="hidden">Search</button>
+        </form>
+      </div>
+
       {pathname !== '/shop' && (
         <div className="border-t border-gray-100 bg-white hidden md:block">
           <div className="max-w-[1600px] w-full mx-auto px-4 md:px-8 flex items-center justify-center gap-8 lg:gap-12">
@@ -252,7 +272,7 @@ export default function Navbar() {
           )}
         </div>
       </div>
-
+      )}
     </div>
   );
 }

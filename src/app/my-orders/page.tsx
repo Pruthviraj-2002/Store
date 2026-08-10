@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/navbar';
 import { useStore } from '@/store/useStore';
 import { useRouter } from 'next/navigation';
+import { supabaseBrowser } from '@/lib/supabase';
 import { 
   ClipboardDocumentListIcon,
   ChevronRightIcon,
@@ -56,6 +57,35 @@ export default function MyOrdersPage() {
 
     if (user?.id) {
       fetchOrders();
+
+      if (!supabaseBrowser) return;
+
+      const channel = supabaseBrowser.channel('orders-web')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+            filter: `profile_id=eq.${user.id}`,
+          },
+          (payload) => {
+            if (payload.eventType === 'INSERT') {
+              fetchOrders();
+            } else if (payload.eventType === 'UPDATE') {
+              setOrders((prev) =>
+                prev.map((order) => (order.id === payload.new.id ? { ...order, ...payload.new } : order))
+              );
+            } else if (payload.eventType === 'DELETE') {
+              setOrders((prev) => prev.filter((order) => order.id !== payload.old.id));
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabaseBrowser.removeChannel(channel);
+      };
     }
   }, [user?.id]);
 

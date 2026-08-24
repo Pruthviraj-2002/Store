@@ -17,7 +17,7 @@ export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Zustand State
+  // Zustand States
   const cartTotalItems = useStore((state) => state.cartItems.reduce((total, item) => total + item.qty, 0));
   const setSearchQuery = useStore((state) => state.setSearchQuery);
   const searchQuery = useStore((state) => state.searchQuery);

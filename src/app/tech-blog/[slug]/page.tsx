@@ -37,7 +37,7 @@ export default function TechBlogArticlePage() {
   const params = useParams();
   const slug = params?.slug as string;
   
-  // Fetch specific post or default to overview if not found (for demonstration)
+  // Fetch specific post or default to overview if not found (for demonstrations)
   const post = blogPostsData[slug] || blogPostsData["components-overview"]; 
 
   const [scrollProgress, setScrollProgress] = useState(0);

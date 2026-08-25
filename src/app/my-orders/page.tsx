@@ -84,7 +84,7 @@ export default function MyOrdersPage() {
         .subscribe();
 
       return () => {
-        supabaseBrowser.removeChannel(channel);
+        supabaseBrowser?.removeChannel(channel);
       };
     }
   }, [user?.id]);

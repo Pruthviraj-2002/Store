@@ -8,7 +8,7 @@ import {
   Share2, Tag, ChevronRight, Component 
 } from "lucide-react";
 
-// Generalized Database Entry
+// Generalized Database Entrys
 const blogPostsData: Record<string, any> = {
   "components-overview": {
     slug: "components-overview",

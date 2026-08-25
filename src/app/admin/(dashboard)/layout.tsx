@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createAdminClient } from '@/utils/supabase/client';
@@ -15,6 +15,19 @@ import {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [adminInitials, setAdminInitials] = useState('AD');
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const supabase = createAdminClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const name = user.user_metadata?.name || user.email?.split('@')[0] || 'Admin';
+        setAdminInitials(name.substring(0, 2).toUpperCase());
+      }
+    };
+    void fetchUser();
+  }, []);
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: ChartPieIcon },
@@ -80,7 +93,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <h2 className="text-lg font-bold text-gray-900">Command Center</h2>
           <div className="flex items-center gap-4">
             <div className="h-8 w-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-sm">
-              AD
+              {adminInitials}
             </div>
           </div>
         </header>

@@ -25,6 +25,7 @@ interface OrderRow {
 
 export default function AdminDashboard() {
   const supabase = createAdminClient();
+  const [adminName, setAdminName] = useState('Admin');
   const [inventory, setInventory] = useState<ProductRow[]>([]);
   const [recentOrders, setRecentOrders] = useState<OrderRow[]>([]);
   
@@ -42,6 +43,14 @@ export default function AdminDashboard() {
   const prevTrigger = useRef(realtimeUpdateTrigger);
 
   useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const name = user.user_metadata?.name || user.email?.split('@')[0] || 'Admin';
+        setAdminName(name);
+      }
+    };
+    void fetchUser();
     void fetchDashboardData();
   }, []);
 
@@ -156,7 +165,7 @@ export default function AdminDashboard() {
       {/* Hero Welcome */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10">
-          <h1 className="text-3xl font-black mb-2 tracking-tight">Welcome back, Admin</h1>
+          <h1 className="text-3xl font-black mb-2 tracking-tight">Welcome back, {adminName}</h1>
           <p className="text-blue-100 font-medium">Here's what's happening with your store today.</p>
         </div>
         <div className="absolute -right-10 -top-10 opacity-10">

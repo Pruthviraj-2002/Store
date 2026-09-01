@@ -8,6 +8,7 @@ import ProductQuickView from "@/components/ProductQuickView";
 import Toaster from "@/components/Toaster";
 import RealtimeProvider from "@/components/RealtimeProvider";
 import Footer from "@/components/footer";
+import { Analytics } from '@vercel/analytics/next';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -50,6 +51,9 @@ export default function RootLayout({
         
         {/* Global Footer */}
         <Footer />
+        
+        {/* Vercel Web Analytics */}
+        <Analytics />
         
       </body>
     </html>
